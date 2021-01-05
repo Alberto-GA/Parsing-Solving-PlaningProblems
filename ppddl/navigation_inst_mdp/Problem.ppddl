@@ -1,0 +1,4 @@
+(define (problem navigation_inst_mdp__1)
+	(:domain navigation_mdp)
+	(:init (robot_at__x21_y12))
+)
