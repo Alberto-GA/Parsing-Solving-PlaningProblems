@@ -33,7 +33,7 @@ from action    import Action
 tokens = (
     'NAME',
     'VARIABLE',
-    'PROBABILITY',
+    'NUMBER',
     'LPAREN',
     'RPAREN',
     'HYPHEN',
@@ -45,6 +45,11 @@ tokens = (
     'EQUALITY_KEY',
     'TYPING_KEY',
     'PROBABILISTIC_EFFECTS_KEY',
+    'ADL_KEY',                                                               #
+    'REWARDS_REQ_KEY',                                                       #
+    'REWARD_KEY',                                                            #
+    'METRIC_KEY',                                                            #
+    'MAXIMIZE_KEY',                                                          #
     'TYPES_KEY',
     'PREDICATES_KEY',
     'ACTION_KEY',
@@ -54,6 +59,9 @@ tokens = (
     'AND_KEY',
     'NOT_KEY',
     'PROBABILISTIC_KEY',
+    'WHEN_KEY',                                                              #
+    'INCREASE_KEY',                                                          #
+    'DECREASE_KEY',                                                          # 
     'PROBLEM_KEY',
     'OBJECTS_KEY',
     'INIT_KEY',
@@ -82,6 +90,11 @@ reserved = {
     ':equality'                 : 'EQUALITY_KEY',
     ':typing'                   : 'TYPING_KEY',
     ':probabilistic-effects'    : 'PROBABILISTIC_EFFECTS_KEY',
+    ':adl'                      : 'ADL_KEY',                                 #
+    ':rewards'                  : 'REWARDS_REQ_KEY',                         #
+    'reward'                    : 'REWARD_KEY',                              #
+    ':metric'                   : 'METRIC_KEY',                              #
+    'maximize'                  : 'MAXIMIZE_KEY',                            #
     ':types'                    : 'TYPES_KEY',
     ':predicates'               : 'PREDICATES_KEY',
     ':action'                   : 'ACTION_KEY',
@@ -91,6 +104,9 @@ reserved = {
     'and'                       : 'AND_KEY',
     'not'                       : 'NOT_KEY',
     'probabilistic'             : 'PROBABILISTIC_KEY',
+    'when'                      : 'WHEN_KEY',                                #
+    'increase'                  : 'INCREASE_KEY',                            #
+    'decrease'                  : 'DECREASE_KEY',                            #                 
     'problem'                   : 'PROBLEM_KEY',
     ':domain'                   : 'DOMAIN_KEY',
     ':objects'                  : 'OBJECTS_KEY',
@@ -114,7 +130,7 @@ def t_VARIABLE(t):
     r'\?[a-zA-z_][a-zA-Z_0-9\-]*'
     return t
 
-def t_PROBABILITY(t):
+def t_NUMBER(t):
     r'[0-1]\.\d+'
     t.value = float(t.value)
     return t
@@ -152,14 +168,14 @@ def p_pddl(p):
             | problem'''
     p[0] = p[1]
 
-#--------------------------------------------------
+#-----------------------------------------------------------------------------
 def p_problem(p):
     '''problem : LPAREN DEFINE_KEY problem_def domain_def objects_def init_def goal_def RPAREN
-               | LPAREN DEFINE_KEY problem_def domain_def init_def RPAREN'''
-    if len(p) == 7:
-        p[0] = Problem(p[3], p[4], [], p[5], [])
+               | LPAREN DEFINE_KEY problem_def domain_def init_def metric_def RPAREN'''           #
+    if len(p) == 8:
+        p[0] = Problem(p[3], p[4], [], p[5], [], p[6])
     elif len(p) == 9:  
-        p[0] = Problem(p[3], p[4], p[5], p[6], p[7])
+        p[0] = Problem(p[3], p[4], p[5], p[6], p[7],'Goal-oriented',)
         
 #(define (problem test-problem)
 def p_problem_def(p):
@@ -185,7 +201,12 @@ def p_init_def(p):
 def p_goal_def(p):
     '''goal_def : LPAREN GOAL_KEY LPAREN AND_KEY ground_predicates_lst RPAREN RPAREN'''
     p[0] = p[5]
-#--------------------------------------------------
+
+
+def p_metric_def(p):
+    '''metric_def : LPAREN METRIC_KEY MAXIMIZE_KEY LPAREN REWARD_KEY RPAREN RPAREN '''   
+    p[0] = p[3]
+#-----------------------------------------------------------------------------
 
 
 # Grammar rule 6:
@@ -196,9 +217,13 @@ def p_goal_def(p):
 #         (:action ... )       -> see rule x
 # ) 
 def p_domain(p):
-    '''domain : LPAREN DEFINE_KEY domain_def require_def types_def predicates_def action_def_lst RPAREN'''
-    p[0] = Domain(p[3], p[4], p[5], p[6], p[7])
-
+    '''domain : LPAREN DEFINE_KEY domain_def require_def types_def predicates_def action_def_lst RPAREN
+              | LPAREN DEFINE_KEY domain_def require_def predicates_def action_def_lst RPAREN'''
+    
+    if len(p)==8:           # For Planning Domains without typing requirment
+        p[0] = Domain(p[3], p[4], [], p[5], p[6])
+    elif len(p)==9:         # For Planning Domains with typing requirement
+        p[0] = Domain(p[3], p[4], p[5], p[6], p[7])
 
 # Grammar rule 7:
 # (domain DomainName)
@@ -231,7 +256,9 @@ def p_require_key(p):
     '''require_key : STRIPS_KEY
                    | EQUALITY_KEY
                    | TYPING_KEY
-                   | PROBABILISTIC_EFFECTS_KEY'''
+                   | PROBABILISTIC_EFFECTS_KEY
+                   | ADL_KEY
+                   | REWARDS_REQ_KEY'''
     p[0] = str(p[1])
 
 
@@ -297,8 +324,13 @@ def p_action_def_lst(p):
 #		        )
 # )    
 def p_action_def(p):
-    '''action_def : LPAREN ACTION_KEY NAME parameters_def action_def_body RPAREN'''
-    p[0] = Action(p[3], p[4], p[5][0], p[5][1])
+    '''action_def : LPAREN ACTION_KEY NAME parameters_def action_def_body RPAREN
+                  | LPAREN ACTION_KEY NAME action_def_body RPAREN '''
+                  
+    if len(p) == 6:    # For Domains without parameters nor preconditions that rely on conditional effects        
+        p[0] = Action(p[3], [],  p[4][0],  p[4][1])
+    elif len(p) == 7:  # For Domains following the grammar above
+        p[0] = Action(p[3], p[4], p[5][0], p[5][1])
 
 
 # Grammar rule 17:
@@ -319,8 +351,12 @@ def p_parameters_def(p):
 #       :effect (and ListOfPredicates
 #		        )
 def p_action_def_body(p):
-    '''action_def_body : precond_def effects_def'''
-    p[0] = (p[1], p[2])
+    '''action_def_body : precond_def effects_def
+                       | effects_def'''
+    if len(p) == 2:
+        p[0] = ([], p[1])
+    elif len(p) == 3:
+        p[0] = (p[1], p[2])
 
 
 # Grammar rule 19:
@@ -357,12 +393,43 @@ def p_effects_lst(p):
 #  single effect
 def p_effect(p):
     '''effect : literal
-              | LPAREN PROBABILISTIC_KEY PROBABILITY literal RPAREN'''
+              | LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN
+              | LPAREN WHEN_KEY literal LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN RPAREN
+              | LPAREN WHEN_KEY LPAREN AND_KEY literals_lst RPAREN LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN RPAREN
+              | LPAREN WHEN_KEY literal LPAREN DECREASE_KEY LPAREN REWARD_KEY RPAREN NUMBER RPAREN RPAREN
+              | LPAREN WHEN_KEY literal LPAREN INCREASE_KEY LPAREN REWARD_KEY RPAREN NUMBER RPAREN RPAREN'''
+              
     if len(p) == 2:
-        p[0] = (1.0, p[1])
-    elif len(p) == 6:
-        p[0] = (p[3], p[4])
+        p[0] = ( (1.0, p[1]) , [])
+    
+    elif len(p) == 5:
+        p[0] = (p[3], [])
+    
+    elif len(p) == 9:                                    # conditional effects -> WHEN
+        p[0] = (p[6], p[3])
+    
+    elif ( len(p) == 12 and  p[8]=='probabilistic'):     # conditional effects -> WHEN            
+        p[0] = (p[9], p[5])
+    
+    elif len(p) == 12:                                   # Increase/Decrease reward           
+        p[0] = ( (1.0, (p[5], p[7], p[9])) , p[3])
+        
 
+def p_prob_effect_list(p):
+    '''prob_effect_list: prob_effect prob_effect_list
+                       | prob_effect'''
+                       
+    if len(p) == 2:
+        p[0] = [p[1]]
+    elif len(p) == 3:
+        p[0] = [p[1]] + p[2]
+
+def p_prob_effect(p):
+    '''prob_effect: NUMBER literal'''
+    p[0] = (p[1],p[2])
+    
+        
+    
 # ----------------------------------------------------------------------------
 
 def p_literals_lst(p):
