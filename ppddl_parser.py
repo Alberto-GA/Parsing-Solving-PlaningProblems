@@ -1,6 +1,6 @@
 #-----------------------------------------------------------------------------
 """
-This code try to provide a function to read PPDDL domains and problems and 
+This code tries to provide a function to read PPDDL domains and problems and 
 compile them to generate a generative transition model.
 
 """
@@ -106,7 +106,7 @@ reserved = {
     'probabilistic'             : 'PROBABILISTIC_KEY',
     'when'                      : 'WHEN_KEY',                                #
     'increase'                  : 'INCREASE_KEY',                            #
-    'decrease'                  : 'DECREASE_KEY',                            #                 
+    'decrease'                  : 'DECREASE_KEY',                            #  
     'problem'                   : 'PROBLEM_KEY',
     ':domain'                   : 'DOMAIN_KEY',
     ':objects'                  : 'OBJECTS_KEY',
@@ -171,11 +171,14 @@ def p_pddl(p):
 #-----------------------------------------------------------------------------
 def p_problem(p):
     '''problem : LPAREN DEFINE_KEY problem_def domain_def objects_def init_def goal_def RPAREN
-               | LPAREN DEFINE_KEY problem_def domain_def init_def metric_def RPAREN'''           #
+               | LPAREN DEFINE_KEY problem_def domain_def init_def metric_def RPAREN'''
+               
     if len(p) == 8:
         p[0] = Problem(p[3], p[4], [], p[5], [], p[6])
     elif len(p) == 9:  
-        p[0] = Problem(p[3], p[4], p[5], p[6], p[7],'Goal-oriented',)
+        p[0] = Problem(p[3], p[4], p[5], p[6], p[7], 'Goal-oriented')
+        
+        
         
 #(define (problem test-problem)
 def p_problem_def(p):
@@ -201,12 +204,12 @@ def p_init_def(p):
 def p_goal_def(p):
     '''goal_def : LPAREN GOAL_KEY LPAREN AND_KEY ground_predicates_lst RPAREN RPAREN'''
     p[0] = p[5]
-
+    
 
 def p_metric_def(p):
     '''metric_def : LPAREN METRIC_KEY MAXIMIZE_KEY LPAREN REWARD_KEY RPAREN RPAREN '''   
     p[0] = p[3]
-#-----------------------------------------------------------------------------
+#--------------------------------------------------
 
 
 # Grammar rule 6:
@@ -224,6 +227,7 @@ def p_domain(p):
         p[0] = Domain(p[3], p[4], [], p[5], p[6])
     elif len(p)==9:         # For Planning Domains with typing requirement
         p[0] = Domain(p[3], p[4], p[5], p[6], p[7])
+
 
 # Grammar rule 7:
 # (domain DomainName)
@@ -358,7 +362,6 @@ def p_action_def_body(p):
     elif len(p) == 3:
         p[0] = (p[1], p[2])
 
-
 # Grammar rule 19:
 # preconditions 
 def p_precond_def(p):
@@ -390,34 +393,38 @@ def p_effects_lst(p):
         p[0] = [p[1]] + p[2]
 
 # Grammar rule 21:
-#  single effect
+# single effect -> ( list of probability-effects pairs, list of conditions)
+# Preconditions and conditional effects are not the same thing. 
+# if all the preconditions of the action are true, then the action can be triggered
+# Then, we have to assess each effect. Independent probabilistic effects are 
+# not mutually exclusive. Within each effect, we have to check if they are conditional 
+# effects and whether their conditions are true or not.
 def p_effect(p):
     '''effect : literal
               | LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN
+              | LPAREN WHEN_KEY literal fluent_def RPAREN
               | LPAREN WHEN_KEY literal LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN RPAREN
-              | LPAREN WHEN_KEY LPAREN AND_KEY literals_lst RPAREN LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN RPAREN
-              | LPAREN WHEN_KEY literal LPAREN DECREASE_KEY LPAREN REWARD_KEY RPAREN NUMBER RPAREN RPAREN
-              | LPAREN WHEN_KEY literal LPAREN INCREASE_KEY LPAREN REWARD_KEY RPAREN NUMBER RPAREN RPAREN'''
+              | LPAREN WHEN_KEY LPAREN AND_KEY literals_lst RPAREN LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN RPAREN'''
               
     if len(p) == 2:
-        p[0] = ( (1.0, p[1]) , [])
+        p[0] = ( [(1.0, p[1])] , [])
     
     elif len(p) == 5:
         p[0] = (p[3], [])
+        
+    elif len(p) == 6:                               # Increase/Decrease reward           
+        p[0] = ( [(1.0, p[4])] , p[3])
     
-    elif len(p) == 9:                                    # conditional effects -> WHEN
+    elif len(p) == 9:                               # conditional effects -> WHEN
         p[0] = (p[6], p[3])
     
-    elif ( len(p) == 12 and  p[8]=='probabilistic'):     # conditional effects -> WHEN            
+    elif len(p) == 12 :                             # conditional effects -> WHEN            
         p[0] = (p[9], p[5])
     
-    elif len(p) == 12:                                   # Increase/Decrease reward           
-        p[0] = ( (1.0, (p[5], p[7], p[9])) , p[3])
-        
-
+           
 def p_prob_effect_list(p):
-    '''prob_effect_list: prob_effect prob_effect_list
-                       | prob_effect'''
+    '''prob_effect_list : prob_effect prob_effect_list
+                        | prob_effect'''
                        
     if len(p) == 2:
         p[0] = [p[1]]
@@ -425,11 +432,17 @@ def p_prob_effect_list(p):
         p[0] = [p[1]] + p[2]
 
 def p_prob_effect(p):
-    '''prob_effect: NUMBER literal'''
-    p[0] = (p[1],p[2])
-    
-        
-    
+    '''prob_effect : NUMBER literal'''
+    p[0] = [(p[1], p[2])]
+
+
+def p_fluent_def(p):
+    '''fluent_def : LPAREN DECREASE_KEY LPAREN REWARD_KEY RPAREN NUMBER RPAREN
+                  | LPAREN INCREASE_KEY LPAREN REWARD_KEY RPAREN NUMBER RPAREN'''
+                 
+    p[0] = (p[2], p[4], p[6])
+                  
+                  
 # ----------------------------------------------------------------------------
 
 def p_literals_lst(p):
@@ -567,7 +580,6 @@ class PDDLParser(object):
         if pos != -1:
             line = line[:pos]
         return line
-
 
 
 
