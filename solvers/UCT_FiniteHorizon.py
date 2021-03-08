@@ -30,16 +30,16 @@ Note also that the childs are never included in the graph...
 state.SampleChild(a) instansciates locally a successor state but it is not
 stored in the graph.
 """
-def Rollout(s, s_goal):
+def Rollout(s,horizon):
     
-    depth = 15       # Define the depth parameter, how deep do you want to go?
+    depth = 10
     nRollout = 0    # initialise the rollout counter
     payoff = 0      # initialise the cummulative cost/reward
     while nRollout < depth:
         
         # Stop the rollout if a dead-end is reached.
         # NOTE: "the first state will never be a dead-end so payoff not 0"
-        if ( not s.actions or StateEquality(s, s_goal)): return payoff
+        if ( (horizon-nRollout) == 0): return payoff
         
         # The rollouts progress with random actions -> sample an action
         a = s.SampleAction()
@@ -171,7 +171,7 @@ def CheckGoal(s1, s_g):
     return rv
 
 #----------------------------------------------------------------------------#     
-def UCT_Trial(s, s_goal, c):
+def UCT_Trial(s, H, c):
     
     global G           # Make sure that I have access to the graph
     K = -5             # Internal parameter -> asociated cost to dead-ends
@@ -181,8 +181,7 @@ def UCT_Trial(s, s_goal, c):
         # decision epoch has been reached. In infinte horizon (disc. reward) 
         # MDP, the terminal states are the goals and the dead-ends.
         
-    #if StateEquality(s, s_goal): return 0               # No cost to reach the goal->goal will never appear in G
-    if CheckGoal(s, s_goal): return 0
+    if H == 0 : return 0
     elif not s.actions: return K             # Penalty for dead-ends (no applicable actions)
         
     # 2) CHECK IF THE CURRENT STATE IS NEW -----------------------------------
@@ -213,7 +212,7 @@ def UCT_Trial(s, s_goal, c):
             # the Qvalue is the inmediate cost/reward plus the long term
             # cost/reward that is estimated through a rollout
             G[s][a]={}
-            G[s][a]["Q-value"] = cost + Rollout(successor, s_goal)
+            G[s][a]["Q-value"] = cost + Rollout(successor, H-1)
             aux.append(G[s][a]["Q-value"])  
             
             # Register the visit for this pair s-a
@@ -277,7 +276,7 @@ def UCT_Trial(s, s_goal, c):
         
     else :
             
-        QvaluePrime =  cost + UCT_Trial(successor, s_goal, c)  
+        QvaluePrime =  cost + UCT_Trial(successor, H-1, c)  
         
   
     # 7) UPDATE THE Q-VALUE OF THE PAIR (s,a_UCB)-----------------------------
@@ -334,39 +333,26 @@ The Main function needs three arguments:
 The basic return is the whole tree so that it is possible to se the estimated
 value of the initial state, and the suggested policy solution.
 """
-def UCT_like(s0, s_goal, maxTrials,c):
+def UCT_like_FH(s0, horizon, maxTrials,c):
     
     nTrial = 0                         # Initialize the trial counter
     global G                           # make a global variable so that all 
                                        # the functions can modify it
     G = {}                             # Initialize a graph
     Vs0 = []                           # Stores the evolution of Vs0 along trials
+    
+    k=1
+    
     while nTrial < maxTrials :         # Perform trials while possible
         
+        if (nTrial >= k*maxTrials/10):
+            print( str(k*10) + "%")
+            k+=1
+            
         nTrial += 1
-        UCT_Trial(s0, s_goal, c)
+        UCT_Trial(s0, horizon, c)
         Vs0.append(G[s0]["V"])
         
-    
-    # print 20 first steps of policy solution
-    s = s0
-    count = 0
-    while (s in G) and (count <20):
-        for a in G[s].keys():
-        
-            if (a != 'N' and a != 'V'):
-            
-                if (G[s][a]['Q-value'] == G[s]['V']):
-                
-                    print(a)
-                    [successor,cost] = s.SampleChild(a)
-                    successor = checkState(successor)
-                    s = successor
-                    if CheckGoal(s, s_goal):
-                        print("Goal reached")
-                        
-                    count +=1
-                    break
         
     return G,Vs0
 

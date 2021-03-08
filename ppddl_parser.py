@@ -413,10 +413,10 @@ def p_effect(p):
         p[0] = (p[3], [])
         
     elif len(p) == 6:                               # Increase/Decrease reward           
-        p[0] = ( [(1.0, p[4])] , p[3])
+        p[0] = ( [(1.0, p[4])] , [p[3]])
     
     elif len(p) == 9:                               # conditional effects -> WHEN
-        p[0] = (p[6], p[3])
+        p[0] = (p[6], [p[3]])
     
     elif len(p) == 12 :                             # conditional effects -> WHEN            
         p[0] = (p[9], p[5])
@@ -433,7 +433,7 @@ def p_prob_effect_list(p):
 
 def p_prob_effect(p):
     '''prob_effect : NUMBER literal'''
-    p[0] = [(p[1], p[2])]
+    p[0] = (p[1], p[2])                                                        # before i had [(p[1], p[2])]
 
 
 def p_fluent_def(p):

@@ -41,5 +41,5 @@ class Action(object):
     def __str__(self):
         operator_str  = '{0}({1})\n'.format(self._name, ', '.join(map(str, self._params)))
         operator_str += '>> precond: {0}\n'.format(', '.join(map(str, self._precond)))
-        operator_str += '>> effects: {0}\n'.format(', '.join(map(str, self._effects)))
+        operator_str += '>> effects: {0}\n'.format(',\n '.join(map(str, self._effects)))
         return operator_str

@@ -6,18 +6,18 @@ from random       import random
 from logic        import XOR
 
 
+
+
+#directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\blocksworld\domain.pddl'
+#directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\blocksworld\p01.pddl'
+
 #directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\rover\Domain.pddl'
-#directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\rover\p01.pddl'
+#♣directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\rover\p01.pddl'
 
-directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\blocksworld\domain.pddl'
-directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\blocksworld\p01.pddl'
+directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p6\Domain.ppddl'
+directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p6\p06.ppddl'
 
-#directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\navigation_inst_mdp\Domain.ppddl'
-#directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\navigation_inst_mdp\Problem.ppddl'
 
-#(:metric maximize (reward))
-#	;; (:horizon 40)
-#	;; (:discount 1.0)
 
 MyDomain = PDDLParser.parse(directory1)
 MyProblem = PDDLParser.parse(directory2)
@@ -44,7 +44,6 @@ def getGoalState():
 # OBJECTIVE: Create a list with all the possible actions for this problem
 
 actions = []
-
 for g_action in MyDomain.operators:
     
     # Save the name of the function because it won't change
@@ -157,32 +156,79 @@ for g_action in MyDomain.operators:
         effects = []
         for effect in  g_action.effects:          # Custom each general effect
             
-            arguments = effect[1].predicate.args
-            my_arguments = parameters.copy()
-            my_names = parameter_names.copy()
-            args2pop = []
-            for i in range(0, len(parameter_names)):
-                if parameter_names[i] not in arguments:
-                    args2pop.append(i)
-                    
-            if args2pop:
-                args2pop.reverse()
-                for index in args2pop:
-                    my_arguments.pop(index)
-                    my_names.pop(index)
+            # each effect is a tuple -> (list of mutex outcomes, list of conditions)
+            # part 1: edit the list of mutually exlcusive outcomes -> effect[0]
+            mutex_effects_list = []
+            for mutex_effect in effect[0]:
+                
+                if type(mutex_effect[1]) is tuple:  # We won't custom fluent effects
+                     mutex_effects_list.append( mutex_effect )
+                else:
+                    arguments = mutex_effect[1].predicate.args
+                    my_arguments = parameters.copy()
+                    my_names = parameter_names.copy()
+                    args2pop = []
+                    for i in range(0, len(parameter_names)):
+                        if parameter_names[i] not in arguments:
+                            args2pop.append(i)
+                            
+                    if args2pop:
+                        args2pop.reverse()
+                        for index in args2pop:
+                            my_arguments.pop(index)
+                            my_names.pop(index)
+                
+                    my_arguments_check = []
+                    aux = []
+                    for pname in my_names:
+                        aux.append(mutex_effect[1].predicate.args.index(pname))
+                    for i in range(0,len(my_names)):
+                        index = aux.index(i)
+                        my_arguments_check.append(my_arguments[index])
+                            
+                    my_prob = mutex_effect[0]
+                    my_pred = Predicate (mutex_effect[1].predicate.name, my_arguments_check)
+                    my_effect = Literal(my_pred, mutex_effect[1]._positive)
+                    mutex_effects_list.append( (my_prob, my_effect) )
             
-            my_arguments_check = []
-            aux = []
-            for pname in my_names:
-                aux.append(effect[1].predicate.args.index(pname))
-            for i in range(0,len(my_names)):
-                index = aux.index(i)
-                my_arguments_check.append(my_arguments[index])
+            # part 2: edit the list of conditions for conditional effects -> effect[1]
+            conditions = []
+            for cond_eff in effect[1]:
+                arguments = cond_eff.predicate.args         # Read the arguments of the condition
+                my_arguments = parameters.copy()            # Create a copy of the current combination of parameters
+                my_names = parameter_names.copy()           # Create a copy of the generic names of the args of the function
+                args2pop = []                               # List with arguments to remove
+                for i in range(0, len(parameter_names)):    # Check one by one if all the params names appear in precond args
+                    if parameter_names[i] not in arguments:
+                        args2pop.append(i)                  # Remember the position of the argument to pop
+               
+                if args2pop:                                # If we have to pop sth
+                    # revert the list to pop elements from the end to the top
+                    # Hence, we avoid modifying the actual position of the arguments
+                    # that we want to pop
+                    args2pop.reverse()     
+                    for index in args2pop:
+                        my_arguments.pop(index)
+                        my_names.pop(index)
+                
+                # Check the order- Sometimes args of some precondition and effect predicates has different order from action args
+                my_arguments_check = []
+                aux = []
+                for pname in my_names:                              # for each name following the order of action args,
+                    aux.append(cond_eff.predicate.args.index(pname)) # append its position in precondition predicate
+                
+                for i in range(0,len(my_names)):   #let's build the checked-arguments from elemt 0
+                    index = aux.index(i)           #what is the position in "my_arguments" of the parameter that goes in the "ith" position
+                    my_arguments_check.append(my_arguments[index]) # append the correct parameter that goes in the ith position
                     
-            my_prob = effect[0]
-            my_pred = Predicate (effect[1].predicate.name, my_arguments_check)
-            my_effect = Literal(my_pred, effect[1]._positive)
-            effects.append( (my_prob, my_effect) )
+                
+                my_pred = Predicate( cond_eff.predicate.name, my_arguments_check)
+                my_cond = Literal (my_pred, cond_eff._positive)
+                conditions.append(my_cond)
+            
+            # The 2 parts of the effect have been customised, apend the effect
+            # to the list and continue with the following effect
+            effects.append( (mutex_effects_list, conditions) )
         
         # Create a new action and append it to the list
         my_action = Action(act_name, parameters, preconditions, effects)
@@ -281,22 +327,78 @@ class State:
         
         
     def SampleChild(self, action):
-     
+        """
+        The successor state will feature a new list of predicates.
+        The objective of this method is to build this new list by applying 
+        the effects of the action.
+        """
         new_pred = list(self.predicates)  # Copy from set to list
-        for eff in action.effects:
-            r = random()                # Create a random number in the range [0,1]
-            if (r <= eff[0]):           # Consider the effect according to probability
-                if eff[1]._positive:    # This predicate becomes (remains) true
-                    new_pred.append(str(eff[1]))    
-                else:                   # This predicate becomes false
-                                        # But... What if it is already false and it is not in the list? try-catch or check before remove
-                    aux = str(eff[1])[4:]
-                    if aux in new_pred:  new_pred.remove(aux)
+        cost = 0
+        
+        for eff_list, cond_list in action.effects:
+            
+            # Check if the conditions of this effect are met.
+            cond_ok = True
+            for cond in cond_list:
+                
+                cond_str = str(cond)
+            
+                if ( cond.predicate.name == '=' ):    # First check if this is an equality condition
+                    proposition1 = cond.predicate.args[0] == cond.predicate.args[1]
+                    proposition2 = cond._positive
+                    if XOR(proposition1, proposition2):  # Use exclusive OR gate to discard the action
+                        cond_ok = False
+                        break
+                    
+                elif not cond._positive:                # Otherwise check if the negative condition is NOT within the predicates of the state
+                    cond_str = cond_str[4:]             
+                    if cond_str in self.predicates:
+                        cond_ok = False
+                        break
+                                       
+                elif cond_str not in self.predicates:   # Otherwise check if the condition is within the predicates of the state
+                    cond_ok = False
+                    break
+            
+            # If the conditions are met, evaluate the effect, otherwise continue with the following effect.
+            if cond_ok:
+                
+                r = random()               # Generate a random number in [0,1]
+                accrualProb = 0
+                
+                for prob, mutex_effect in eff_list:
+                    
+                    accrualProb += prob
+                    if r <= accrualProb:
+                        # Apply solely this effect.
+                        if type(mutex_effect) is tuple:             # For problems that uses rewards
+                            if mutex_effect[0] == "decrease":
+                                cost = (-1.0)*mutex_effect[2]
+                            else:
+                                cost = mutex_effect[2]
+                        elif mutex_effect._positive:                 # This predicate becomes (remains) true
+                            new_pred.append(str(mutex_effect))    
+                        else:                                        # This predicate becomes false (remove it if it was true)
+                            aux = str(mutex_effect)[4:]
+                            if aux in new_pred:  new_pred.remove(aux)
+                        break
+                    else: 
+                        continue
+            
+            else: 
+                continue
                         
         
-                         
+        # all the effects have been assessed and we have the new predicates
+        # then, instanciate a new state object encoding these predicates
         child = State(set(new_pred))
-        cost = Cost(child)
+        
+        # If the action didn't have any effect on the reward, compute a default
+        # cost with the Cost function. These kind of function are common in
+        # problems that don't have a :metric maximise/minimise reward. In other 
+        # words, the goal-oriented problems.
+        if MyProblem.metric == "Goal-oriented": cost = Cost(child)
+        
         return [child, cost]
        
             

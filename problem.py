@@ -18,7 +18,7 @@ import itertools
 
 class Problem(object):
 
-    def __init__(self, name, domain, objects, init, goal):
+    def __init__(self, name, domain, objects, init, goal, metric):
         self._name = name
         self._domain = domain
         self._objects = {}
@@ -27,6 +27,7 @@ class Problem(object):
             self._objects[obj.type].append(str(obj.value))
         self._init = set(map(str, init))
         self._goal = set(map(str, goal))
+        self._metric = metric
 
     @property
     def name(self):
@@ -47,7 +48,11 @@ class Problem(object):
     @property
     def goal(self):
         return self._goal.copy()
-
+    
+    @property
+    def metric(self):
+        return self._metric
+    
     def __str__(self):
         problem_str  = '@ Problem: {0}\n'.format(self._name)
         problem_str += '>> domain: {0}\n'.format(self._domain)
@@ -56,4 +61,5 @@ class Problem(object):
             problem_str += '{0} -> {1}\n'.format(type, ', '.join(sorted(objects)))
         problem_str += '>> init:\n{0}\n'.format(', '.join(sorted(self._init)))
         problem_str += '>> goal:\n{0}\n'.format(', '.join(sorted(self._goal)))
+        problem_str += '>> metric: {0}\n'.format(self._metric)
         return problem_str
