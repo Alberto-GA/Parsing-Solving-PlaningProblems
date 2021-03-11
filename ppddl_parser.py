@@ -131,7 +131,7 @@ def t_VARIABLE(t):
     return t
 
 def t_NUMBER(t):
-    r'[0-1]\.\d+'
+    r'[0-9]\.\d+'
     t.value = float(t.value)
     return t
 
@@ -403,6 +403,7 @@ def p_effect(p):
     '''effect : literal
               | LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN
               | LPAREN WHEN_KEY literal fluent_def RPAREN
+              | LPAREN WHEN_KEY LPAREN AND_KEY literals_lst RPAREN fluent_def RPAREN
               | LPAREN WHEN_KEY literal LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN RPAREN
               | LPAREN WHEN_KEY LPAREN AND_KEY literals_lst RPAREN LPAREN PROBABILISTIC_KEY prob_effect_list RPAREN RPAREN'''
               
@@ -414,6 +415,9 @@ def p_effect(p):
         
     elif len(p) == 6:                               # Increase/Decrease reward           
         p[0] = ( [(1.0, p[4])] , [p[3]])
+    
+    elif ( len(p) == 9 and  p[4]== r'and' ):          # Increas/Decrease reaward several conditions
+        p[0] = ( [(1.0, p[7])] , p[5])
     
     elif len(p) == 9:                               # conditional effects -> WHEN
         p[0] = (p[6], [p[3]])

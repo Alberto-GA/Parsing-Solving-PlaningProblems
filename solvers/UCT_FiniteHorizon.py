@@ -32,7 +32,7 @@ stored in the graph.
 """
 def Rollout(s,horizon):
     
-    depth = 10
+    depth = 3
     nRollout = 0    # initialise the rollout counter
     payoff = 0      # initialise the cummulative cost/reward
     while nRollout < depth:

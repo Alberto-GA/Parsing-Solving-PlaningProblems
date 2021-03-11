@@ -14,10 +14,11 @@ from logic        import XOR
 #directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\rover\Domain.pddl'
 #♣directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\rover\p01.pddl'
 
-directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p6\Domain.ppddl'
-directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p6\p06.ppddl'
+#directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p6\Domain.ppddl'
+#directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p6\p06.ppddl'
 
-
+directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\elevators_inst_mdp\p1\Domain.ppddl'
+directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\elevators_inst_mdp\p1\p01.ppddl'
 
 MyDomain = PDDLParser.parse(directory1)
 MyProblem = PDDLParser.parse(directory2)
@@ -370,14 +371,17 @@ class State:
                     
                     accrualProb += prob
                     if r <= accrualProb:
+                        
                         # Apply solely this effect.
-                        if type(mutex_effect) is tuple:             # For problems that uses rewards
+                        if type(mutex_effect) is tuple:              # For problems that uses rewards -> this effect is not a literal
                             if mutex_effect[0] == "decrease":
-                                cost = (-1.0)*mutex_effect[2]
+                                cost += (-1.0)*mutex_effect[2]
                             else:
-                                cost = mutex_effect[2]
+                                cost += mutex_effect[2]
+                                
                         elif mutex_effect._positive:                 # This predicate becomes (remains) true
-                            new_pred.append(str(mutex_effect))    
+                            new_pred.append(str(mutex_effect)) 
+                            
                         else:                                        # This predicate becomes false (remove it if it was true)
                             aux = str(mutex_effect)[4:]
                             if aux in new_pred:  new_pred.remove(aux)
