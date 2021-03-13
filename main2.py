@@ -5,6 +5,8 @@ from solvers.UCT_FiniteHorizon import UCT_like_FH
 from simulation import runSim_FH
 from simulation import sim_CrossingTraffic
 from simulation import sim_Elevators
+from simulation import sim_GameOfLife
+from simulation import sim_Reconnaissance
 
 import matplotlib.pyplot as plt
 
@@ -12,8 +14,8 @@ import matplotlib.pyplot as plt
 s0 = getInitialState()
 s_goal = getGoalState()
 
-MaxTrials = 2000
-exploration_c = 1000
+MaxTrials = 60000
+exploration_c = 10000
 horizon = 40
 
 
@@ -30,11 +32,16 @@ runSim_FH(s0, G, horizon)
 
 # RUN ANIMATED SIMULATIONS
 #sim_CrossingTraffic(s0, G, horizon)
-sim_Elevators(s0, G, horizon, 1)
+#sim_Elevators(s0, G, horizon, 1)
+#sim_GameOfLife(s0, G, horizon, 1)
+sim_Reconnaissance(s0, G, horizon, 3)
+
+
+
 
 
 """
-noop = s0.actions[2]
+noop = s0.actions[0]
 [s1, cost] = s0.SampleChild(noop)
 goUp = s1.actions[1]
 [s2, cost2] = s1.SampleChild(goUp)
