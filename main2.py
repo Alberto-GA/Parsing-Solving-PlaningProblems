@@ -7,6 +7,7 @@ from simulation import sim_CrossingTraffic
 from simulation import sim_Elevators
 from simulation import sim_GameOfLife
 from simulation import sim_Reconnaissance
+from simulation import sim_Maze
 
 import matplotlib.pyplot as plt
 
@@ -14,8 +15,8 @@ import matplotlib.pyplot as plt
 s0 = getInitialState()
 s_goal = getGoalState()
 
-MaxTrials = 60000
-exploration_c = 10000
+MaxTrials = 2000
+exploration_c = 2
 horizon = 40
 
 
@@ -34,8 +35,8 @@ runSim_FH(s0, G, horizon)
 #sim_CrossingTraffic(s0, G, horizon)
 #sim_Elevators(s0, G, horizon, 1)
 #sim_GameOfLife(s0, G, horizon, 1)
-sim_Reconnaissance(s0, G, horizon, 3)
-
+#sim_Reconnaissance(s0, G, horizon, 3)
+sim_Maze(s0, G, horizon, 1)
 
 
 

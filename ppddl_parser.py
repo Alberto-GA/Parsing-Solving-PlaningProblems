@@ -171,14 +171,19 @@ def p_pddl(p):
 #-----------------------------------------------------------------------------
 def p_problem(p):
     '''problem : LPAREN DEFINE_KEY problem_def domain_def objects_def init_def goal_def RPAREN
-               | LPAREN DEFINE_KEY problem_def domain_def init_def metric_def RPAREN'''
+               | LPAREN DEFINE_KEY problem_def domain_def init_def metric_def RPAREN
+               | LPAREN DEFINE_KEY problem_def domain_def init_def goal_def RPAREN'''
                
-    if len(p) == 8:
+    if ( (len(p) == 8) and (type(p[6]) is list) ): 
+         p[0] = Problem(p[3], p[4], [], p[5], p[6],'Goal-oriented')
+         
+    elif len(p) == 8:
         p[0] = Problem(p[3], p[4], [], p[5], [], p[6])
+        
     elif len(p) == 9:  
         p[0] = Problem(p[3], p[4], p[5], p[6], p[7], 'Goal-oriented')
         
-        
+
         
 #(define (problem test-problem)
 def p_problem_def(p):

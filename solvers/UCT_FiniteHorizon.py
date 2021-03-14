@@ -37,9 +37,11 @@ def Rollout(s,horizon):
     payoff = 0      # initialise the cummulative cost/reward
     while nRollout < depth:
         
-        # Stop the rollout if a dead-end is reached.
         # NOTE: "the first state will never be a dead-end so payoff not 0"
+        # 1) Stop the rollout if the state is terminal -> horizon reached
+        # 2) Stop the rollout if a dead-end is reached.
         if ( (horizon-nRollout) == 0): return payoff
+        elif not s.actions: return payoff - 5.0
         
         # The rollouts progress with random actions -> sample an action
         a = s.SampleAction()
@@ -174,7 +176,9 @@ def CheckGoal(s1, s_g):
 def UCT_Trial(s, H, c):
     
     global G           # Make sure that I have access to the graph
-    K = -5             # Internal parameter -> asociated cost to dead-ends
+    K = -5.0           # Internal parameter -> asociated cost to dead-ends
+                       # This cost is also defined in rollout method. 
+                       # Please, make coherent modifications !
     
     # 1) CHECK IF THE STATE IS TERMINAL---------------------------------------
         # as a reminder: in finite horizion MDP terminal means that the final
