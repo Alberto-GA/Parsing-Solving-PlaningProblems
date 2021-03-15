@@ -42,6 +42,7 @@ def Rollout(s,horizon):
         # 2) Stop the rollout if a dead-end is reached.
         if ( (horizon-nRollout) == 0): return payoff
         elif not s.actions: return payoff - 5.0
+        #elif not s.predicates: return payoff - (horizon-nRollout) * (0.8) # max cost for the rest of decission epochs
         
         # The rollouts progress with random actions -> sample an action
         a = s.SampleAction()
@@ -176,7 +177,7 @@ def CheckGoal(s1, s_g):
 def UCT_Trial(s, H, c):
     
     global G           # Make sure that I have access to the graph
-    K = -5.0           # Internal parameter -> asociated cost to dead-ends
+    K = -1.0           # Internal parameter -> asociated cost to dead-ends
                        # This cost is also defined in rollout method. 
                        # Please, make coherent modifications !
     
@@ -187,6 +188,7 @@ def UCT_Trial(s, H, c):
         
     if H == 0 : return 0
     elif not s.actions: return K             # Penalty for dead-ends (no applicable actions)
+    #elif not s.predicates: return H * K
         
     # 2) CHECK IF THE CURRENT STATE IS NEW -----------------------------------
         # If this state have been visited before, overwrite it with the first
@@ -272,16 +274,19 @@ def UCT_Trial(s, H, c):
         # reverse order so the trial finishes when the backup is done in the 
         # root node.
     
+    '''
     if successor == s :
         
         # Kill possible loop (s'=s) with current Qvalue estimate
         # This condition never applies if only relevant actions are considered        
         QvaluePrime = cost + G[s]["V"]
+
         
     else :
-            
-        QvaluePrime =  cost + UCT_Trial(successor, H-1, c)  
+           
         
+    '''
+    QvaluePrime =  cost + UCT_Trial(successor, H-1, c)
   
     # 7) UPDATE THE Q-VALUE OF THE PAIR (s,a_UCB)-----------------------------
     

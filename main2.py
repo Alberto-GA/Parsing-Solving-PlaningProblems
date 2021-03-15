@@ -8,6 +8,7 @@ from simulation import sim_Elevators
 from simulation import sim_GameOfLife
 from simulation import sim_Reconnaissance
 from simulation import sim_Maze
+from simulation import sim_SysAdmin
 
 import matplotlib.pyplot as plt
 
@@ -15,8 +16,8 @@ import matplotlib.pyplot as plt
 s0 = getInitialState()
 s_goal = getGoalState()
 
-MaxTrials = 2000
-exploration_c = 2
+MaxTrials = 5000
+exploration_c = 180
 horizon = 40
 
 
@@ -36,8 +37,8 @@ runSim_FH(s0, G, horizon)
 #sim_Elevators(s0, G, horizon, 1)
 #sim_GameOfLife(s0, G, horizon, 1)
 #sim_Reconnaissance(s0, G, horizon, 3)
-sim_Maze(s0, G, horizon, 1)
-
+#sim_Maze(s0, G, horizon, 1)
+#sim_SysAdmin(s0, G, horizon, 3)
 
 
 
