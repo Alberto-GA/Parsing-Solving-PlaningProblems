@@ -198,12 +198,17 @@ def p_objects_def(p):
 
 def p_init_def(p):
     '''init_def : LPAREN INIT_KEY LPAREN AND_KEY ground_predicates_lst RPAREN RPAREN
-                | LPAREN INIT_KEY ground_predicates_lst RPAREN'''
+                | LPAREN INIT_KEY ground_predicates_lst RPAREN
+                | LPAREN INIT_KEY  RPAREN'''
         
     if len(p) == 5:
         p[0] = p[3]
+        
     elif len(p) == 8:
         p[0] = p[5]
+        
+    elif len(p) == 4:
+        p[0] = []
 
 
 def p_goal_def(p):

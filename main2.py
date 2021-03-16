@@ -17,7 +17,7 @@ s0 = getInitialState()
 s_goal = getGoalState()
 
 MaxTrials = 5000
-exploration_c = 180
+exploration_c = 10
 horizon = 40
 
 
