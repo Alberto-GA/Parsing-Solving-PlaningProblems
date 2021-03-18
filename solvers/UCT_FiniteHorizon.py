@@ -30,7 +30,7 @@ Note also that the childs are never included in the graph...
 state.SampleChild(a) instansciates locally a successor state but it is not
 stored in the graph.
 """
-def Rollout(s,horizon):
+def Rollout(s, horizon):
     
     depth = 40
     nRollout = 0    # initialise the rollout counter
@@ -94,9 +94,9 @@ s'=s, only relevant actions must be initialised!!! -> LOOK STEP 2
 """
 def ActionSelection(s,G,c):
 
-    UCB = {}         # Dictionary to save the result of UCB for each action
+    UCB = {}            # Dictionary to save the result of UCB for each action
     
-    for a in s.actions:  # UCB formula
+    for a in s.actions: # UCB formula
         
         UCB[a] = G[s][a]["Q-value"] + c * math.sqrt(math.log(G[s]["N"])/G[s][a]["Na"])
       
@@ -177,7 +177,7 @@ def CheckGoal(s1, s_g):
 def UCT_Trial(s, H, c):
     
     global G           # Make sure that I have access to the graph
-    K = -1.0           # Internal parameter -> asociated cost to dead-ends
+    K = -0.5           # Internal parameter -> asociated cost to dead-ends
                        # This cost is also defined in rollout method. 
                        # Please, make coherent modifications !
     
@@ -187,7 +187,7 @@ def UCT_Trial(s, H, c):
         # MDP, the terminal states are the goals and the dead-ends.
         
     if H == 0 : return 0
-    elif not s.actions: return K             # Penalty for dead-ends (no applicable actions)
+    elif not s.actions: return H*K             # Penalty for dead-ends (no applicable actions)
     #elif not s.predicates: return H * K
         
     # 2) CHECK IF THE CURRENT STATE IS NEW -----------------------------------

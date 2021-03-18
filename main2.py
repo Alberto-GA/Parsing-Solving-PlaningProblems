@@ -1,7 +1,13 @@
 from GenerativeModel import getInitialState
 from GenerativeModel import getGoalState
+
 from solvers.UCT import UCT_like
 from solvers.UCT_FiniteHorizon import UCT_like_FH
+from solvers.UCT_EBC import UCT_adativeCoefficient
+from solvers.UCT_EBC_FH import UCT_adativeCoefficient_FH
+from solvers.maxUCT_FH import maxUCT_like
+from solvers.maxUCT_EBC_FH import maxUCT_adaptive
+
 from simulation import runSim_FH
 from simulation import sim_CrossingTraffic
 from simulation import sim_Elevators
@@ -9,6 +15,8 @@ from simulation import sim_GameOfLife
 from simulation import sim_Reconnaissance
 from simulation import sim_Maze
 from simulation import sim_SysAdmin
+
+import tracemalloc
 
 import matplotlib.pyplot as plt
 
@@ -20,17 +28,20 @@ MaxTrials = 5000
 exploration_c = 10
 horizon = 40
 
-
 # CALL THE ALGORITHM TO SOLVE THE PROBLEM
 #[G, Vs0] = UCT_like(s0, s_goal, MaxTrials, exploration_c)                     # For infinite horizon domains
-[G, Vs0] = UCT_like_FH(s0, horizon, MaxTrials, exploration_c)                  # For finite horizon domains
+#[G, Vs0] = UCT_like_FH(s0, horizon, MaxTrials, exploration_c)                 # For finite horizon domains
+#[G, Vs0] = UCT_adativeCoefficient(s0, s_goal, MaxTrials, 2)    
+#[G, Vs0] = UCT_adativeCoefficient_FH(s0, horizon, MaxTrials, 2)    
+#[G, Vs0] = maxUCT_like(s0, horizon, MaxTrials, exploration_c)    
+[G, Vs0] = maxUCT_adaptive(s0, horizon, MaxTrials, 2)    
 
 
 # PLOT THE EVOLUTION OF V(s0)
 plt.plot(Vs0)
 
 # RUN A SIMULATION:
-runSim_FH(s0, G, horizon)
+#runSim_FH(s0, G, horizon)
 
 # RUN ANIMATED SIMULATIONS
 #sim_CrossingTraffic(s0, G, horizon)
