@@ -11,6 +11,11 @@ import operator
 """
 def Rollout(s, horizon):
     
+    # Give one extra step for new nodes that have been discovered at the end 
+    # of the trial.
+    if horizon < 1:
+        horizon = 1
+    
     depth = 40      # Define the depth parameter, how deep do you want to go?
     nRollout = 0    # initialise the rollout counter
     payoff = 0      # initialise the cummulative cost/reward
@@ -94,7 +99,7 @@ def ActionSelection_Mean(s,G):
 
 """
 def ActionSelection_Pair(s,G):
-    c = [0,2]           # Exploration coefficient bounds 
+    c = [0.0, 10.0]           # Exploration coefficient bounds 
     UCB = {}         # Dictionary to save the result of UCB for each action
     
     # CONSIDER ONLY RELEVANT ACTIONS 
@@ -104,7 +109,7 @@ def ActionSelection_Pair(s,G):
         en = (c[1]-c[0]) * s.entropy[a] + c[0]
         # Compute the adaptive explotration coefficient by rescaling with the 
         # higher cost/reward
-        c_ebc = 5 * en 
+        c_ebc = 2.0 * en 
         # Modified UCB formula                              
         UCB[a] = G[s][a]["Q-value"] + c_ebc * math.sqrt(math.log(G[s]["N"])/G[s][a]["Na"])
 
@@ -305,9 +310,8 @@ def Trial(s,H,option):
     # instance of that state. Otherwise continue an initialise the node.
     s = checkState(s)
     
-    # 1) CHECK IF THE STATE IS TERMINAL---------------------------------------        
-    if  H == 0 : return
-    elif not s.actions:          
+    # 0.5) ESPECIAL CHECK FOR DEAD_ENDS (No Application for most problems)
+    if not s.actions:          
         
         if s not in G :                #Include dead-end node in the Graph
             G[s] = {}
@@ -318,9 +322,11 @@ def Trial(s,H,option):
             G[s]["N"] += 1
             return          
         
-            
-    # 2) CHECK IF THE STATE IS ALREADY IN THE GRAPH
-    if s not in G: return initNode(s,H)
+    # 2) CHECK IF THE STATE IS ALREADY IN THE GRAPH --------------------------
+    if s not in G: return initNode(s,H)        
+    
+    # 1) CHECK IF THE STATE IS TERMINAL --------------------------------------        
+    if  H == 0 : return
     
     # 3) EXPAND THE NODE IF IT'S ALREADY IN THE GRAPH ------------------------
     if   option == 0 : a_UCB = ActionSelection_Max(s,G)    

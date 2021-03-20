@@ -206,7 +206,7 @@ def sim_CrossingTraffic(s0, G, horizon):
         
     animator = ani.FuncAnimation(fig, newFrame, interval = 200)
     
-    animator.save(r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\output\simuP6.gif')
+    animator.save(r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\output\FroggerP3.gif')
     
     return
     
@@ -415,7 +415,7 @@ def sim_Elevators(s0, G, horizon, problem):
             ax_lst[2].bar(['Up','Closed','person'], e2_state, color = 'cyan')
     
     animator = ani.FuncAnimation(fig, newFrame, interval = 400)
-    animator.save(r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\output\elevatorsP1.gif')
+    animator.save(r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\output\elevatorsP1MAX.gif')
     
     return
 

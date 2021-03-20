@@ -116,7 +116,7 @@ def ActionSelection_Mean(s,G):
 
 """
 def ActionSelection_Pair(s,G):
-    c = [0,2]           # Exploration coefficient bounds 
+    c = [0.0, 5.0]           # Exploration coefficient bounds 
     UCB = {}         # Dictionary to save the result of UCB for each action
     
     # CONSIDER ONLY RELEVANT ACTIONS 
@@ -126,7 +126,7 @@ def ActionSelection_Pair(s,G):
         en = (c[1]-c[0]) * s.entropy[a] + c[0]
         # Compute the adaptive explotration coefficient by rescaling with the 
         # higher cost/reward
-        c_ebc = 5 * en 
+        c_ebc = 4.0 * en 
         # Modified UCB formula                              
         UCB[a] = G[s][a]["Q-value"] + c_ebc * math.sqrt(math.log(G[s]["N"])/G[s][a]["Na"])
 

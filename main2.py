@@ -24,7 +24,8 @@ import matplotlib.pyplot as plt
 s0 = getInitialState()
 s_goal = getGoalState()
 
-MaxTrials = 5000
+MaxTrials = 1000
+
 exploration_c = 10
 horizon = 40
 

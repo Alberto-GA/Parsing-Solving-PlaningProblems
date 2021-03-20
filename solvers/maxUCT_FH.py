@@ -12,6 +12,11 @@ from random import choice
 """
 def Rollout(s, horizon):
     
+    # Give one extra step for new nodes that have been discovered at the end 
+    # of the trial.
+    if horizon < 1:
+        horizon = 1
+        
     depth = 40      # Define the depth parameter, how deep do you want to go?
     nRollout = 0    # initialise the rollout counter
     payoff = 0      # initialise the cummulative cost/reward
@@ -161,9 +166,8 @@ def UCT_Trial(s,H,c):
     # instance of that state. Otherwise continue an initialise the node.
     s = checkState(s)
     
-    # 1) CHECK IF THE STATE IS TERMINAL---------------------------------------        
-    if  H == 0 : return
-    elif not s.actions:          
+    # 0.5) ESPECIAL CHECK FOR DEAD_ENDS (No Application for most problems)
+    if not s.actions:          
         
         if s not in G :                #Include dead-end node in the Graph
             G[s] = {}
@@ -175,8 +179,11 @@ def UCT_Trial(s,H,c):
             return         
         
             
-    # 2) CHECK IF THE STATE IS ALREADY IN THE GRAPH
+    # 2) CHECK IF THE STATE IS ALREADY IN THE GRAPH --------------------------
     if s not in G: return initNode(s,H)
+    
+    # 1) CHECK IF THE STATE IS TERMINAL---------------------------------------        
+    if  H == 0 : return
     
     # 3) EXPAND THE NODE IF IT'S ALREADY IN THE GRAPH ------------------------
     a_UCB = ActionSelection(s,G,c)
