@@ -1,19 +1,17 @@
 """
-                        UCT like algorithm V2
-This is the second versiond of the original code. The previous version was 
-adapted to work with a declarative model of the Obstacles-Maze-SSP_MDP. 
-However, this algorithm doesn't need to know the whole transition model. In
-fact, it doesn't need to instanciate all the possible states before starting.
-For these reasons this code has been enhanced to work only with a generative
-model that is described in SSP_GenerativeModel.py. Then, the algorithm will 
-take actions at given states that eventually will lead it to new states. As a
-consequence, this algorithm has an additional mission which consists in 
-identifying if the "new" state have been already visited. This is important 
-because new states are instanciated when a child is sampled but we only want to 
-keep one instance of each particular state.
+THIS ALGORITHM WITHIN THE TRIAL-BASED HEURISTIC TREE-SEARCH METHOD FRAMEWORK
+ 
+HEURISTIC: Rollout legacy from plain UCT
+ACTION SELECTION STRATEGY: Upper Confidence Bounds applied to tres (UCB)
+                           minimization of the regret of choosing the wrong 
+                           action
+BACK-UP : classical Monte Carlo planning
+OUTCOME SELECTION : succesors are sampled according to P(s'|s,a)
+TRIAL LENGTH: the trial continues until the Finite Horizon of the MDP
 
-This algorithm is an adptation of the classical UCT algorithm. It is based on 
-RTDP. Credits to Caroline Chanel.
+NOTE:
+    State-Space S = {predicates}  or  {predicates} x {0,...,H} depending
+    on the checkstate function.
 
 """
 #-------------------------------LIBRAIRES------------------------------------#
@@ -22,28 +20,55 @@ import operator
 from random import choice
 #-------------------------------FUNCTIONS------------------------------------#
 """
-The Rollout function is used to initialise the Q-value of a new node in the 
-Graph. It basically returns an estimation of the long term cost/reward starting
-from the child "s".
-Note that the rollout do not need to end in the goal.
-Note also that the childs are never included in the graph... 
-state.SampleChild(a) instansciates locally a successor state but it is not
-stored in the graph.
+                        DEFINE THE HEURISTIC TO INIT V(s)
 """
 def Rollout(s, horizon):
+    '''
+    Parameters
+    ----------
+    s : State object from GenerativeModel.py
+        This is the sate where the rollout starts. This function will sample 
+        a random applicable action 'a' for 's' and then a succesor s' will be 
+        sampled according to P(s'|s,a). When this transition is triggered, it
+        will return a cost that will be added up to the accrual cost. This 
+        process continues until the maximum depth is reached, or until there 
+        are no more decision steps left. Whichever comes first.
+    horizon : int
+        This is the remaining decision steps for state s. This argument is 
+        a little bit redundant because in a general use case this 'horizon' 
+        must be equal to s.remaining_steps. However, I leave this argument
+        to allow the user to provide a different value.
+
+    Returns
+    -------
+    payoff : float
+        This is the accrual cost of the rollout that starts in s and continues
+        until the horizon or until the maximum depth. In other words, this is
+        a first estimate of V(s).
     
-    depth = 40
+    Note also that the childs are never included in the graph. 
+    state.SampleChild(a) instansciates locally a successor state but it is not
+    stored in the graph.
+
+    '''
+    depth = 1      # Define the depth parameter, how deep do you want to go?
     nRollout = 0    # initialise the rollout counter
-    payoff = 0      # initialise the cummulative cost/reward
+    payoff = 0.0    # initialise the cummulative cost/reward
     while nRollout < depth:
         
-        # NOTE: "the first state will never be a dead-end so payoff not 0"
         # 1) Stop the rollout if the state is terminal -> horizon reached
-        # 2) Stop the rollout if a dead-end is reached.
+        # 2) Stop the rollout if a dead-end is reached. There are several ways
+        #    to model a Dead-End.
+        #    a) Maze -> Dead-end if s has no applicable actions.
+        #    b) Navigation -> Dead-end when the robot is lost and s.predicates
+        #                     is an empty set. CAUTION for other problems such
+        #                     as SysAdmin or Skillteaching , empty predicates
+        #                     do NOT mean dead-end. So just in case do not 
+        #                     uncomment the last elif.
         if ( (horizon-nRollout) == 0): return payoff
-        elif not s.actions: return payoff - 5.0
-        #elif not s.predicates: return payoff - (horizon-nRollout) * (0.8) # max cost for the rest of decission epochs
-        
+        elif not s.actions: return payoff - (horizon-nRollout) * 0.5
+        #elif not s.predicates: return payoff - (horizon-nRollout) * (0.8)     # max cost for the rest of decission epochs
+                
         # The rollouts progress with random actions -> sample an action
         a = s.SampleAction()
 
@@ -63,36 +88,34 @@ def Rollout(s, horizon):
 
 #----------------------------------------------------------------------------#    
 """
-The action selection method is the heart of UCT. It is the way the algorithm 
-deals with the exploration-exploitation dilemma. Namely, UCT takes the ideas 
-of bandit problems and applies the UCB formula to solve the conflict. In this
-formula there is a term that votes for exploitation of the best current policy.
-By contrast, the other term is devoted to exploring less visited nodes.
-
-It receives the current Graph as input because this function doesn't modify 
-the graph.
-
-"""
-
-
-"""
-There is a problem with the action selection when "lazy" actions are chosen 
-from the UCB formula because the successor is the same state and this issue 
-comes into conflict with the recursivity. For this reason I've suggested to 
-take into account only relevant actions using the function below. 
-
-WARNING: This choice doesn't seem to be a great idea because the nodes are 
-completely initialised. This means that all the actions are tried and they
-are provided with a first stimate of the Q-value(s,a) thanks to a rollout.
-And where is the problem? Well, this values are initialised but the actions 
-are no longer taken into account through action selection (UCB) resulting in
-a biased situation between relevant and lazy actions.
-
-CONCLUSION: if you want to remove the "lazy" actions to kill loops of type 
-s'=s, only relevant actions must be initialised!!! -> LOOK STEP 2
-
+                     DEFINE THE ACTION SELECTION STRATEGY
 """
 def ActionSelection(s,G,c):
+    '''
+    Parameters
+    ----------
+    s : state object from GenerativeModel.py
+        This is the state that will be considered to choose the action.
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of state s that is needed
+        to apply the modified UCB formula
+    c : float
+        This is the exploration coefficient. Higher c means more exploration.
+
+    Returns
+    -------
+    a_UCB : action object
+        This action selection strategy returns the action that maximize the
+        UCB formula. This formula ensure the minimization of the regret of 
+        choosing the wrong action. The action selection method is the heart of 
+        UCT. It is the way the algorithm deals with the exploration-exploitation 
+        dilemma. Namely, UCT takes the ideas of bandit problems and applies 
+        the UCB formula to solve the conflict. In this formula there is a term 
+        that votes for exploitation of the best current policy. By contrast, 
+        the other term is devoted to exploring less visited nodes.
+
+    '''
 
     UCB = {}            # Dictionary to save the result of UCB for each action
     
@@ -117,64 +140,17 @@ def ActionSelection(s,G,c):
     
 #----------------------------------------------------------------------------#
 """
-checkState(s): is a function that allows us to check if the current "new" 
-state "s" is actually new or have been visited before. How does it work? 
-Simple, it takes a state as an imput, if there is an state "s" in the graph 
-with the same predicates s is overwritten with that state and the recently
-created instance is never used again. Otherwise, the function returns the 
-reference to the state object without any modification to inlcude it in the 
-graph.
+                     DEFINE SOME USEFUL TOOLS
+"""    
 
-This function, in turn, relies on StateEquality(s1,s2) that compares the predi-
-cates of two input states and returns TRUE if both states have the same predi-
-cates. This means that they are two different instances (references) of the 
-same State. Otherwise it returns FALSE.
-
-BONUS: in some problem definitions, the goal state is not defined with all the
-predicates. In fact, they usually specify only some requiered predicates while
-the rest can be either true or false. Consequently, using StateEquality(s,goal)
-may fail to indetify goal states. Use CheckGoal(s,goal) instead!
-"""
-def StateEquality(s1,s2):
-    rv= True                                         # Init return value
-    if len(s1.predicates) == len(s2.predicates):     # Check if the number of predicates is the same
-        for pred in s1.predicates:
-            if pred not in s2.predicates:            # Check if every predicate of s1 is in s2.
-                rv = False
-                break                                # One mismatch is enough to return False
-    else:
-        rv = False
-    
-    return rv
-      
-    
-def checkState(s):
-    
-    global G              # Get access to the graph
-    # state by state check if the predicates of the analysed state matches with 
-    # the predicates of already visited states.
-    for state in G.keys():
-        
-        if StateEquality(s,state) :
-            # Overwrite s because it is a new instance 
-            # of an already visited state
-            s = state
-            break
-    return s
-
-
-def CheckGoal(s1, s_g):
-    
-    rv = True
-    for pred in s_g.predicates:
-        if pred not in s1.predicates:
-           rv = False
-           break
-       
-    return rv
+from simulation.sim_ToolBox import checkState
+from simulation.sim_ToolBox import checkState_FH
 
 #----------------------------------------------------------------------------#     
-def UCT_Trial(s, H, c):
+"""
+            DESCRIPTION OF ALL THE PROCESSES WITHIN A TRIAL
+""" 
+def UCT_Trial(s, H, c, FH_Flag):
     
     global G           # Make sure that I have access to the graph
     K = -0.5           # Internal parameter -> asociated cost to dead-ends
@@ -182,9 +158,9 @@ def UCT_Trial(s, H, c):
                        # Please, make coherent modifications !
     
     # 1) CHECK IF THE STATE IS TERMINAL---------------------------------------
-        # as a reminder: in finite horizion MDP terminal means that the final
-        # decision epoch has been reached. In infinte horizon (disc. reward) 
-        # MDP, the terminal states are the goals and the dead-ends.
+    # as a reminder: in finite horizion MDP terminal means that the final
+    # decision epoch has been reached. In infinte horizon (disc. reward) 
+    # MDP, the terminal states are the goals and the dead-ends.
         
     if H == 0 : return 0
     elif not s.actions: return H*K             # Penalty for dead-ends (no applicable actions)
@@ -193,10 +169,14 @@ def UCT_Trial(s, H, c):
     # 2) CHECK IF THE CURRENT STATE IS NEW -----------------------------------
         # If this state have been visited before, overwrite it with the first
         # instance of that state. Otherwise continue an initialise the node.
-    s = checkState(s)
+    if FH_Flag:
+        s = checkState_FH(s,G)
+    else:
+        s = checkState(s,G)
     
     if s not in G:
-        #print("New state detected -> Initialisation")
+        
+        # INIT NODE
         # Create a new node in the graph if this is a new state
         G[s] = {}        # intialise node's dictionary
         G[s]["N"] = 0    # Count the first visit to the node (as the number of initialised actions) 
@@ -240,63 +220,31 @@ def UCT_Trial(s, H, c):
         return rv
     
     # 3) EXPAND THE NODE IF IT'S ALREADY IN THE GRAPH ------------------------
-        # To expand a node, UCT applies the action selection  
-        # strategy that is based on the UCB formula, this code provide two
-        # different functions to return the 'best' action:
-        #    -Actionselection(s,G)-> all actions, including "lazy" actions, are considered.
-        #    -RelevantActionSelection(s,G)-> only relevant actions are considered.
     a_UCB = ActionSelection(s,G,c)
     
     # 4) SAMPLE A CHILD  PLAYING THIS ACTION ---------------------------------
     [successor,cost] = s.SampleChild(a_UCB)
     
     
-      # 6) UPDATE THE COUNTERS -------------------------------------------------
-        # The order between this step and step 5 could be reversed. This
-        # is so because the target problem allows to play actions that lead
-        # the agent to the same state. Taking into account the recursivity of
-        # the following step, it could generate an infinte loop of 
-        # actionSelection-childSampling if G is not modified so that the UCB
-        # formula is affected. 
-        # The objective of this strategy is not to remove the loops but to 
-        # make the loops finite. To do it, the "lazy" action mustn't be the
-        # result of the action selection (UCB) forever. Updating the counters
-        # in combination with a high enough exploration coefficient seems to 
-        # be a promising strategy...   
+    # 6) UPDATE THE COUNTERS -------------------------------------------------
     G[s]["N"] += 1
     G[s][a_UCB]["Na"] += 1   
     
     # 5) COMPUTE AN ESTIMATE OF Q(s,a_UCB)------------------------------------
-        # The importance of this first estimate is twofold. First it will be 
-        # used to Compute the final estimate of the Q-value. Second, its
-        # recursive architecture allows to expand the state including the 
-        # child in the graph, and it also performs a subsequent backup in 
-        # reverse order so the trial finishes when the backup is done in the 
-        # root node.
+    # The importance of this first estimate is twofold. First it will be 
+    # used to Compute the final estimate of the Q-value. Second, its
+    # recursive architecture allows to expand the state including the 
+    # child in the graph, and it also performs a subsequent backup in 
+    # reverse order so the trial finishes when the backup is done in the 
+    # root node.
     
-    '''
-    if successor == s :
-        
-        # Kill possible loop (s'=s) with current Qvalue estimate
-        # This condition never applies if only relevant actions are considered        
-        QvaluePrime = cost + G[s]["V"]
-
-        
-    else :
-           
-        
-    '''
-    QvaluePrime =  cost + UCT_Trial(successor, H-1, c)
+    QvaluePrime =  cost + UCT_Trial(successor, H-1, c, FH_Flag)
   
     # 7) UPDATE THE Q-VALUE OF THE PAIR (s,a_UCB)-----------------------------
-    
-        # OPTION 1 : classical POMCP-GO approach
+    # classical POMCP-GO approach
     G[s][a_UCB]["Q-value"] += (QvaluePrime - G[s][a_UCB]["Q-value"]) / G[s][a_UCB]["Na"]
-    
-        # OPTION 2 : MinPOMCP-GO approach
-    
-    
-    
+      
+      
     # 8) UPDATE THE VALUE FUNCTION OF THE DECISION NODE
     
     # OPTION 1: V(s) <- SUM[Na(s,a) . Q(s,a)]/N(s)
@@ -316,33 +264,47 @@ def UCT_Trial(s, H, c):
     
 #----------------------------------------------------------------------------#    
 """
-This is the skeleton of the UCT: it relies on the UCT_Trial method wich will
-update and refine the information in G, a global variable which represents
-the current partial tree. The desired architecture for this variable is:
-    
-    G = { s1: {a1 : {"Q-value" : current estimation for Q(s1,a1)
-                        "Na"   : number of times we have played a1 in s1}
-               a2 : {...}
-               N  : Number of times this State has been visited
-               V  : Value function in the decission Node s. This computation 
-                    is not essential but could be useful if "lazy" actions are playing
-               } 
-         
-         s2:{...}
-         }
-
-Note that I've decided to use a dictionary becasue it is easy to visualize in 
-the variable explorer. However other data structures could be useful as well...
-
-The Main function needs three arguments:
-    1) Initial state
-    2) max number of trials
-    3) exploration coefficient
-
-The basic return is the whole tree so that it is possible to se the estimated
-value of the initial state, and the suggested policy solution.
+            DESCRIPTION OF THE MAIN BODY OF THE ALGORITHM
 """
-def UCT_like_FH(s0, horizon, maxTrials,c):
+def UCT_like_FH(s0, horizon, maxTrials, c, FH_Flag):
+    '''
+    Parameters
+    ----------
+    s0 : State object from GenerativeModel.py
+        This is the initial state, the root of the tree. All the trials will
+        start in this state.
+    horizon : int
+        This is the finite horizon of the MDP. The planning problem has only
+        "horizon" decision epochs.
+    maxTrials : int
+        This is the "time-out", the stop condition. The algorithm will run
+        trials until the number of trials reaches maxTrials
+    c : float
+        Exploration coefficient for the action selection strategy
+
+    Returns
+    -------
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of all the states that
+        have been discovered through trials.
+         G = { s1: { N  : Number of times this State has been visited N(s)
+                     V  : Value function in the decission Node s. 
+                     a1 : { "Na"       : number of times chance node s1,a1 has 
+                                         been visited
+                            "Q-value"  : current estimation for Q(s1,a1)
+                          } 
+                     
+                     a2 : {...}
+                   }
+              
+              s2: {...}         
+            }
+        
+    Vs0 : list
+        This list contains the evolution of V(s0) along trials.
+
+    '''
     
     nTrial = 0                         # Initialize the trial counter
     global G                           # make a global variable so that all 
@@ -350,16 +312,16 @@ def UCT_like_FH(s0, horizon, maxTrials,c):
     G = {}                             # Initialize a graph
     Vs0 = []                           # Stores the evolution of Vs0 along trials
     
-    k=1
+    k=1                                # Display counter
     
     while nTrial < maxTrials :         # Perform trials while possible
         
-        if (nTrial >= k*maxTrials/10):
+        if (nTrial >= k*maxTrials/10): # Display progress every 10%
             print( str(k*10) + "%")
             k+=1
             
         nTrial += 1
-        UCT_Trial(s0, horizon, c)
+        UCT_Trial(s0, horizon, c, FH_Flag)
         Vs0.append(G[s0]["V"])
         
         

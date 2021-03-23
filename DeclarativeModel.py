@@ -15,11 +15,11 @@ from logic        import XOR
 #directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\rover\Domain.pddl'
 #directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\rover\p01.pddl'
 
-directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p4\Domain.ppddl'
-directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p4\p04.ppddl'
+#directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p6\Domain.ppddl'
+#directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\crossing_traffic_inst_mdp\p6\p06.ppddl'
 
-#directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\elevators_inst_mdp\p1\Domain.ppddl'
-#directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\elevators_inst_mdp\p1\p01.ppddl'
+directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\elevators_inst_mdp\p1\Domain.ppddl'
+directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\elevators_inst_mdp\p1\p01.ppddl'
 
 #directory1 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\game_of_life_inst_mdp\p1\Domain.ppddl'
 #directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\ppddl\game_of_life_inst_mdp\p1\p01.ppddl'
@@ -45,14 +45,6 @@ directory2 = r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\l
 
 MyDomain = PDDLParser.parse(directory1)
 MyProblem = PDDLParser.parse(directory2)
-
-def getInitialState():
-    s0 = State(MyProblem.init)
-    return s0
-
-def getGoalState():
-    s_goal = State(MyProblem.goal)
-    return s_goal
 
 
 #%%
@@ -306,370 +298,43 @@ def set_applicable_actions (actions, predicates):
     '''
              
     return app_actions     #final_actions           # Save the result in the state attribute
-  
 
-#-----------------------------------------------------------------------------
+#%%
 
-def CheckGoal(s1):
-    '''
-    Parameters
-    ----------
-    s1 : State object
-        This is the state that will be compared with the goal of the problem
-
-    Returns
-    -------
-    rv : bool
-        True whenever all the predicates of the goal are also true in s1
-        predicates. Otherwise False
-
-    '''
-    s_g = getGoalState()
-    rv = True
+def build_StateSpace(domain_preds, index, pred_lst , StateSpace ):
     
-    for pred in s_g.predicates:
-        if pred not in s1.predicates:
-           rv = False
-           break
-       
-    return rv
-
-
-#-----------------------------------------------------------------------------  
-def Cost(state):
-    '''
-    Parameters
-    ----------
-    state : State object
-        This is the successor s' sampled from the chance node (s,a). 
-
-    Returns
-    -------
-    goalcost/ DeadEndCost / nominalCost
+    positive_pred = pred_lst.copy()
+    negative_pred = pred_lst.copy()
     
-    This functio will be called solely if we are working with goal-oriented
-    problems such as Stochastic Shortest Path problems
-
-    '''
-    nominalCost = -0.5
-    DeadEndCost = -5
-    goalCost = 0
+    newPred = domain_preds[index]
+    positive_pred.append(newPred)
     
-    if CheckGoal(state)   : return goalCost
-    elif not state.actions: return DeadEndCost
-    else:                   return nominalCost   
-    
-#-----------------------------------------------------------------------------
-def get_clean_effect_list(s_predicates, appli_action):
-    '''    
-    Parameters
-    ----------
-    s_predicates : set
-        This is the set of predicates that will be used to assess the relevance
-        of appli_action's effects.
-    appli_action : action object
-        This is an applicable action in the state defined by the predicates
-        in s_predicates.
-
-    Returns
-    -------
-    active_effects : list
-        This is the list of effects that is the most condensed representation
-        of the action effects. This list contains only relevant effects that
-        may lead to a new state. In other words, effects whose conditions hold
-        in s and which may add or remove a predicate from s_predicates.
-
-    '''
-    
-    # PART 1: separate the applicable effects from the effects that do not 
-    # satisfy the conditions.
-    
-    appli_effects = []            # List of applicable effects that satisfy 
-                                  # the conditions.
-
-    for eff,cond_lst in appli_action.effects:       # Analyse effect by effect
-            
-            cond_ok = True              # Boolean flag to accept this effect
-            for cond in cond_lst:       # Check all the coditions of the effect
-                               
-                cond_str = str(cond)
-            
-                if ( cond.predicate.name == '=' ):    # First check if this is an equality condition
-                    proposition1 = cond.predicate.args[0] == cond.predicate.args[1]
-                    proposition2 = cond._positive
-                    if XOR(proposition1, proposition2):  # Use exclusive OR gate to discard the action
-                        cond_ok = False
-                        break
-                    
-                elif not cond._positive:                # else check if the negative condition is NOT within the predicates of the state
-                    cond_str = cond_str[4:]             
-                    if cond_str in s_predicates:
-                        cond_ok = False
-                        break
-                                       
-                elif cond_str not in s_predicates:   # else check if the condition is within the predicates of the state
-                    cond_ok = False
-                    break
-    
-            if cond_ok:                   # If all the conditions are OK we can append this effect to our list
-                            
-                appli_effects.append( (eff, cond_lst) )
-    
+    if index < len(domain_preds) - 1:
         
-    # PART 2: Once we have the applicable effects, let's look for the effects 
-    # that actually may have an impact on s.predicates. We want to remove 3
-    # kind of effects:
-    #   1) Decrease/increase reward effect -> they are not taken into account
-    #      to generate succesor's predicates.
-    #   2) Effects that attempt to remove a predicate that is not within
-    #      s.predicates.
-    #   3) Effects that attempt to add a predicate that is is already in
-    #      s.predicates.
+        build_StateSpace(domain_preds, index + 1, positive_pred, StateSpace)
+        build_StateSpace(domain_preds, index + 1, negative_pred, StateSpace)
     
-    active_effects = []           # Final effect list to return
-    for mutex_lst,cond_lst in appli_effects:
-    
-        my_mutex_lst = []         # Mutually exclusive effects that satisfy
-                                  # the aforementioned requirement will be 
-                                  # added to this list.
-        for prob,eff in mutex_lst:
-            
-            if not (type(eff) == tuple):         # Requirement 1)
-                
-                if eff._positive:                # Requirement 3)
-                    pred = str(eff)
-                    if not(pred in s_predicates):
-                        my_mutex_lst.append((prob,eff))
-                else: 
-                    pred = str(eff)[4:]          # requirement 2)
-                    if pred in s_predicates:
-                        my_mutex_lst.append((prob,eff))
+    else:
+        StateSpace.append(positive_pred)
+        StateSpace.append(negative_pred)
         
-        if my_mutex_lst:
-            active_effects.append((my_mutex_lst,cond_lst))
-       
-    return active_effects
-# ----------------------------------------------------------------------------
-
-def compute_probabilities(active_eff_lst, index, sequence_p, sequence_p_list):
-    '''
-    Parameters
-    ----------
-    active_eff_lst : list
-        This is the list of effects that is the most condensed representation
-        of the action effects. This list contains only relevant effects that
-        may lead to a new state. In other words, effects whose conditions hold
-        in s and which may add or remove a predicate from s_predicates. It can
-        be computed with the function get_clean_effect_list()
-    index : int
-        This argument is the current depth of the probability tree, that is to
-        say, the index of the current effect from the list.
-    sequence_p : float
-        This is the current probability of the sequence of events, the proba-
-        bility of the branch at depth index.
-    sequence_p_list : list
-        This list will be used to store the probabilities of all possible
-        branches.
-
-    Returns
-    -------
-    None. The function works with the list object provided in the arguments
-
-    '''
-    
-    mutex_effects_lst = active_eff_lst[index][0]   # Get the current effect
-    
-    accrual_p = 0.0            # Set a counter because the accrual probability
-                               # must be excatly 1.0 within a mutually exclu-
-                               # sive effect list.
-                               
-    for prob,eff in mutex_effects_lst:   # Create a branch for each mutex eff.
-    
-        accrual_p += prob              # add up the probability of this branch
-        current_p = sequence_p * prob  # Update the current probability of the branch
+        listOfStates = []
+        for combination in StateSpace:
+            listOfStates.append( Declarative_State(combination) )
         
-        if index < len(active_eff_lst)-1:  # Go deeper if there are more effects to branch          
-            compute_probabilities(active_eff_lst, index+1, current_p, sequence_p_list)
-        
-        else:                              # Branch has reach the leaf, add the probability
-            sequence_p_list.append(current_p)
-     
-    if accrual_p < 1.0:                  # There is one more mutex effect to consider
-                                         # if this effect does not occur I still have to expand the tree
-                                         # and s' == s is also a succesor of s!
-         prob = 1.0 - accrual_p
-         current_p = sequence_p * prob
-         if index < len(active_eff_lst)-1:
-             compute_probabilities(active_eff_lst, index+1, current_p, sequence_p_list)
-         else:
-             sequence_p_list.append(current_p)  
+        return listOfStates
+
+
             
 
 
-# ----------------------------------------------------------------------------
-class State:
+class Declarative_State:
     
     def __init__(self, predicates):
         self.predicates = predicates
         self.actions = set_applicable_actions (actions, predicates)
-        self.entropy = {}
-        self.max_entropy = 0.0
-        self.mean_entropy = 0.0
-        self.remaining_steps = 40
+        self.transitions = {}                # Transition model  
+        self.value = 0.0                     # Current estimate of V(s)
+        self.solved = False                  # Ssolved label -> for LRTDP
         
-    def SampleAction(self):
-        """
-        This method returns a random action according to the actions 
-        atribute. this method is used in the rollouts of the UCT algorithm
-        """
-        r = random()                # sample a random number in the range [0,1]
-        nA = len(self.actions)      # compute the number of actions
-        deltaP = 1/nA               # compute an increment of probability
-        accrual = 0                 # accrual probability
-        for action in self.actions:
-            
-            accrual += deltaP       # addup the increment to accrual
-            if r <= accrual: return action
-            else: continue
-        
-        
-    def SampleChild(self, action):
-        """
-        The successor state will feature a new list of predicates.
-        The objective of this method is to build this new list by applying 
-        the effects of the action.
-        """
-        new_pred = list(self.predicates)  # Copy from set to list
-        cost = 0.0
-        
-        for eff_list, cond_list in action.effects:
-            
-            # Check if the conditions of this effect are met.
-            cond_ok = True        
-            for cond in cond_list:
-                
-                cond_str = str(cond)
-            
-                if ( cond.predicate.name == '=' ):    # First check if this is an equality condition
-                    proposition1 = cond.predicate.args[0] == cond.predicate.args[1]
-                    proposition2 = cond._positive
-                    if XOR(proposition1, proposition2):  # Use exclusive OR gate to discard the action
-                        cond_ok = False
-                        break
-                    
-                elif not cond._positive:                # Otherwise check if the negative condition is NOT within the predicates of the state
-                    cond_str = cond_str[4:]             
-                    if cond_str in self.predicates:
-                        cond_ok = False
-                        break
-                                       
-                elif cond_str not in self.predicates:   # Otherwise check if the condition is within the predicates of the state
-                    cond_ok = False
-                    break
-            
-            # If the conditions are met, evaluate the effect, otherwise continue with the following effect.
-            if cond_ok:
-                
-                r = random()               # Generate a random number in [0,1]
-                accrualProb = 0
-                
-                for prob, mutex_effect in eff_list:
-                    
-                    accrualProb += prob
-                    if r <= accrualProb:
-                        
-                        # Apply solely this effect.
-                        if type(mutex_effect) is tuple:              # For problems that uses rewards -> this effect is not a literal
-                            if mutex_effect[0] == "decrease":
-                                cost += (-1.0)*mutex_effect[2]
-                            else:
-                                cost += mutex_effect[2]
-                                
-                        elif mutex_effect._positive:                 # This predicate becomes (remains) true
-                            new_pred.append(str(mutex_effect)) 
-                            
-                        else:                                        # This predicate becomes false (remove it if it was true)
-                            aux = str(mutex_effect)[4:]
-                            if aux in new_pred:  new_pred.remove(aux)
-                        break
-                    else: 
-                        continue
-            
-            else: 
-                continue
-                        
-        
-        # all the effects have been assessed and we have the new predicates
-        # then, instanciate a new state object encoding these predicates
-        child = State(set(new_pred))
-        
-        # Define the remaining decision steps
-        child.set_remaining_steps(self.remaining_steps - 1)
-        
-        # If the action didn't have any effect on the reward, compute a default
-        # cost with the Cost function. These kind of function are common in
-        # problems that don't have a :metric maximise/minimise reward. In other 
-        # words, the goal-oriented problems.
-        if MyProblem.metric == "Goal-oriented": cost = Cost(child)
-        
-        return [child, cost]
-       
     
-    def set_entropy(self):
-        '''
-        This method compute the entropy attributes of the state. These attri-
-        butes are not initialised by default. The user must decide when is
-        the best moment to use this method.
-        '''
-        entropy_lst = []
-        
-        for act in self.actions:    # Compute the entropy for each pair s,a
-            
-            # First, proccess the effects of the action to make sure that each
-            # brach of the probability tree truly leads to a different succesor
-            active_eff = get_clean_effect_list(self.predicates, act)
-            
-            # Check if the list of active effects is not empty. If the problem
-            # has goal states where any action is applicable but no effect is
-            # triggered, we can face this situation. Simply init the entropy to
-            # zero because the action is deterministic.
-            if not active_eff: 
-                self.entropy[act] = 0.0
-                entropy_lst.append(0.0)
-                continue                     # go for the next action
-            
-            # Define and compute a list with the probabilities of each branch
-            branch_prob = []
-            compute_probabilities(active_eff, 0, 1.0, branch_prob )
-            
-            # Now compute the entropy for the pair state-action defined as:       
-            #     e(s,a) = -SUM (s') {P(s'|s,a)*log2(P(s'|s,a))
-            
-            e = 0.0
-            
-            for p in branch_prob:
-                e -= p * math.log2(p)     
-            
-            entropy_lst.append(e)            
-            self.entropy[act] = e
-        
-        
-        # Now compute the max entropy of the sate defined as
-        #    e(s) = max (a in A) {-SUM (s') {P(s'|s,a)*log2(P(s'|s,a))}
-
-        self.max_entropy = max(entropy_lst)
-        
-        # Now compute the mean entropy of the sate defined as:
-        # e(s) = 1/|A| SUM(a in A) {-SUM (s') {P(s'|s,a)*log2(P(s'|s,a))}
-        
-        self.mean_entropy = (1.0/len(self.actions))*sum(entropy_lst)
-        
-    def set_remaining_steps(self, steps):
-        self.remaining_steps = steps
-        
-    def __str__(self):
-        return str(self.predicates)+ ' - ' + str(self.remaining_steps)
-#-----------------------------------------------------------------------------
-
-
-

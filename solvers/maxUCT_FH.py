@@ -1,33 +1,79 @@
 """
-       from UCT like algorithm V2 -> NEW BACKUP FUNCTION -> MAX UCT
+THIS ALGORITHM WITHIN THE TRIAL-BASED HEURISTIC TREE-SEARCH METHOD FRAMEWORK
+ 
+HEURISTIC: Rollout legacy from plain UCT
+ACTION SELECTION STRATEGY: Upper Confidence Bounds applied to tres (UCB)
+                           minimization of the regret of choosing the wrong 
+                           action
+BACK-UP : maxUCT like. 
+OUTCOME SELECTION : succesors are sampled according to P(s'|s,a)
+TRIAL LENGTH: the trial continues until the Finite Horizon of the MDP
 
+NOTE:
+    State-Space S = {predicates} x {0,...,H}
 
 """
 #-------------------------------LIBRAIRES------------------------------------#
 import math
 import operator
 from random import choice
+
 #-------------------------------FUNCTIONS------------------------------------#
 """
+                        DEFINE THE HEURISTIC TO INIT V(s)
 """
 def Rollout(s, horizon):
+    '''
+    Parameters
+    ----------
+    s : State object from GenerativeModel.py
+        This is the sate where the rollout starts. This function will sample 
+        a random applicable action 'a' for 's' and then a succesor s' will be 
+        sampled according to P(s'|s,a). When this transition is triggered, it
+        will return a cost that will be added up to the accrual cost. This 
+        process continues until the maximum depth is reached, or until there 
+        are no more decision steps left. Whichever comes first.
+    horizon : int
+        This is the remaining decision steps for state s. This argument is 
+        a little bit redundant because in a general use case this 'horizon' 
+        must be equal to s.remaining_steps. However, I leave this argument
+        to allow the user to provide a different value.
+
+    Returns
+    -------
+    payoff : float
+        This is the accrual cost of the rollout that starts in s and continues
+        until the horizon or until the maximum depth. In other words, this is
+        a first estimate of V(s).
+    
+    Note also that the childs are never included in the graph. 
+    state.SampleChild(a) instansciates locally a successor state but it is not
+    stored in the graph.
+
+    '''
     
     # Give one extra step for new nodes that have been discovered at the end 
-    # of the trial.
+    # of the trial. 
     if horizon < 1:
         horizon = 1
-        
-    depth = 40      # Define the depth parameter, how deep do you want to go?
+    
+    depth = 1      # Define the depth parameter, how deep do you want to go?
     nRollout = 0    # initialise the rollout counter
-    payoff = 0      # initialise the cummulative cost/reward
+    payoff = 0.0    # initialise the cummulative cost/reward
     while nRollout < depth:
         
-        # NOTE: "the first state will never be a dead-end so payoff not 0"
         # 1) Stop the rollout if the state is terminal -> horizon reached
-        # 2) Stop the rollout if a dead-end is reached.
+        # 2) Stop the rollout if a dead-end is reached. There are several ways
+        #    to model a Dead-End.
+        #    a) Maze -> Dead-end if s has no applicable actions.
+        #    b) Navigation -> Dead-end when the robot is lost and s.predicates
+        #                     is an empty set. CAUTION for other problems such
+        #                     as SysAdmin or Skillteaching , empty predicates
+        #                     do NOT mean dead-end. So just in case do not 
+        #                     uncomment the last elif.
         if ( (horizon-nRollout) == 0): return payoff
-        elif not s.actions: return payoff - 5.0
-        #elif not s.predicates: return payoff - (horizon-nRollout) * (0.8) # max cost for the rest of decission epochs        
+        elif not s.actions: return payoff - (horizon-nRollout) * 0.5
+        #elif not s.predicates: return payoff - (horizon-nRollout) * (0.8)     # max cost for the rest of decission epochs        
         
         # The rollouts progress with random actions -> sample an action
         a = s.SampleAction()
@@ -48,9 +94,29 @@ def Rollout(s, horizon):
 
 #----------------------------------------------------------------------------#    
 """
-
+                     DEFINE THE ACTION SELECTION STRATEGY
 """
 def ActionSelection(s,G,c):
+    '''
+    Parameters
+    ----------
+    s : state object from GenerativeModel.py
+        This is the state that will be considered to choose the action.
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of state s that is needed
+        to apply the modified UCB formula
+    c : float
+        This is the exploration coefficient. Higher c means more exploration.
+
+    Returns
+    -------
+    a_UCB : action object
+        This action selection strategy returns the action that maximize the
+        UCB formula. This formula ensure the minimization of the regret of 
+        choosing the wrong action.
+
+    '''
     
     UCB = {}            # Dictionary to save the result of UCB for each action
     
@@ -76,48 +142,30 @@ def ActionSelection(s,G,c):
     
 #----------------------------------------------------------------------------#
 """
-"""
-def StateEquality(s1,s2):
-    rv= True                                         # Init return value
-    if len(s1.predicates) == len(s2.predicates):     # Check if the number of predicates is the same
-        for pred in s1.predicates:
-            if pred not in s2.predicates:            # Check if every predicate of s1 is in s2.
-                rv = False
-                break                                # One mismatch is enough to return False
-    else:
-        rv = False
-    
-    return rv
-      
-    
-def checkState(s):
-    
-    global G              # Get access to the graph
-    # state by state check if the predicates of the analysed state matches with 
-    # the predicates of already visited states.
-    for state in G.keys():
-        
-        if StateEquality(s,state) :
-            # Overwrite s because it is a new instance 
-            # of an already visited state
-            s = state
-            break
-    return s
+                     DEFINE SOME USEFUL TOOLS
+"""    
 
-
-def CheckGoal(s1, s_g):
-    
-    rv = True
-    for pred in s_g.predicates:
-        if pred not in s1.predicates:
-           rv = False
-           break
-       
-    return rv
+from simulation.sim_ToolBox import checkState_FH
 
 #----------------------------------------------------------------------------#        
 
 def initNode(s, horizon):
+    '''
+    Parameters
+    ----------
+    s : State object from GenerativeModel.py
+        This is the node that is going to be initialised in the Graph.
+    horizon : int
+        Remaining decision steps for the initialised node.
+
+    Returns
+    -------
+    rv : float
+        This function returns the first estimate of V(s) but this return is
+        not used by the algorithm because the backup function works 
+        differently now.
+
+    '''
     global G
     
     # Create a new node in the graph if this is a new state
@@ -126,7 +174,6 @@ def initNode(s, horizon):
     G[s]["V"] = 0    # Initialise the Value function of the decission Node
     
     # Initialise the Q-values based on rollouts
-    # NOTE that (all the possible/only relevant) actions are tested.
     # NOTE that the childs are not created in the graph.
     aux = []          # empty list to ease the maximization
     for a in s.actions:
@@ -154,8 +201,25 @@ def initNode(s, horizon):
     return rv
 
 #-----------------------------------------------------------------------------    
-              
+"""
+            DESCRIPTION OF ALL THE PROCESSES WITHIN A TRIAL
+"""                
 def UCT_Trial(s,H,c):
+    '''
+    Parameters
+    ----------
+    s : State object from GenerativeModel.py
+        This is the current sate.
+    H : int
+        This is the remaing decision epochs. It must be equal to s.remaining_steps
+    c : float
+       This is the exploration coefficient for the action selection strategy
+
+    Returns
+    -------
+    None.
+
+    '''
     
     global G           # Make sure that I have access to the graph
     K = -0.5             # Internal parameter -> asociated cost to dead-ends
@@ -164,7 +228,7 @@ def UCT_Trial(s,H,c):
     # 0) CHECK IF THE CURRENT STATE IS NEW -----------------------------------
     # If this state have been visited before, overwrite it with the first
     # instance of that state. Otherwise continue an initialise the node.
-    s = checkState(s)
+    s = checkState_FH(s,G)
     
     # 0.5) ESPECIAL CHECK FOR DEAD_ENDS (No Application for most problems)
     if not s.actions:          
@@ -191,7 +255,7 @@ def UCT_Trial(s,H,c):
     # 4) SAMPLE A CHILD  PLAYING THIS ACTION ---------------------------------
     [successor,cost] = s.SampleChild(a_UCB)
     
-    successor = checkState(successor)
+    successor = checkState_FH(successor,G)
     # 6) UPDATE THE COUNTERS -------------------------------------------------
     G[s]["N"] += 1
     G[s][a_UCB]["Na"] += 1
@@ -233,20 +297,62 @@ def UCT_Trial(s,H,c):
     
 #----------------------------------------------------------------------------#    
 """
-
+            DESCRIPTION OF THE MAIN BODY OF THE ALGORITHM
 """
 def maxUCT_like(s0, horizon, maxTrials,c):
+    '''
+    Parameters
+    ----------
+    s0 : State object from GenerativeModel.py
+        This is the initial state, the root of the tree. All the trials will
+        start in this state.
+    horizon : int
+        This is the finite horizon of the MDP. The planning problem has only
+        "horizon" decision epochs.
+    maxTrials : int
+        This is the "time-out", the stop condition. The algorithm will run
+        trials until the number of trials reaches maxTrials
+    c : float
+        Exploration coefficient for the action selection strategy
+
+    Returns
+    -------
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of all the states that
+        have been discovered through trials.
+         G = { s1: { N  : Number of times this State has been visited N(s)
+                     V  : Value function in the decission Node s. 
+                     a1 : { "cost"     : estimate of C(s1,a1)
+                            "Na"       : number of times chance node s1,a1 has 
+                                         been visited
+                            "Q-value"  : current estimation for Q(s1,a1)
+                            "successors" : { s2: number of times s2 has been
+                                                 sampled from chance node s1,a1
+                                             s3: ...
+                                           }
+                           } 
+                     a2 : {...}
+                   }
+              
+              s2: {...}         
+            }
+        
+    Vs0 : list
+        This list contains the evolution of V(s0) along trials.
+
+    '''
     
     nTrial = 0                         # initialize the trial counter
     global G                           # make a global variable so that all 
                                        # the functions can modify it
     G = {}                             # initialize a graph
     Vs0 = []
-    k=1
+    k=1                                # Display counter
     
     while nTrial < maxTrials :         # perform trials while possible
         
-        if (nTrial >= k*maxTrials/10):
+        if (nTrial >= k*maxTrials/10): # Display progress every 10%
             print( str(k*10) + "%")
             k+=1    
     

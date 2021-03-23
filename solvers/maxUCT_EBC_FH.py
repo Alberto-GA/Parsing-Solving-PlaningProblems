@@ -1,32 +1,79 @@
 """
-         from UCT_EBC  ->  NEW BACKUP FUNCTION  ->  MAX UCT_EBC
+THIS ALGORITHM WITHIN THE TRIAL-BASED HEURISTIC TREE-SEARCH METHOD FRAMEWORK
+ 
+HEURISTIC: Rollout legacy from plain UCT
+ACTION SELECTION STRATEGY: enhanced UCB with adaptive exploration coefficient
+                           based on entropy. 6 different options are provided
+BACK-UP : maxUCT like. 
+OUTCOME SELECTION : succesors are sampled according to P(s'|s,a)
+TRIAL LENGTH: the trial continues until the Finite Horizon of the MDP
 
+NOTE:
+    State-Space S = {predicates} x {0,...,H}
 
 """
+
 #-------------------------------LIBRAIRES------------------------------------#
 import math
 import operator
+from random import choice
 #-------------------------------FUNCTIONS------------------------------------#
 """
+                        DEFINE THE HEURISTIC TO INIT V(s)
 """
 def Rollout(s, horizon):
+    '''
+    Parameters
+    ----------
+    s : State object from GenerativeModel.py
+        This is the sate where the rollout starts. This function will sample 
+        a random applicable action 'a' for 's' and then a succesor s' will be 
+        sampled according to P(s'|s,a). When this transition is triggered, it
+        will return a cost that will be added up to the accrual cost. This 
+        process continues until the maximum depth is reached, or until there 
+        are no more decision steps left. Whichever comes first.
+    horizon : int
+        This is the remaining decision steps for state s. This argument is 
+        a little bit redundant because in a general use case this 'horizon' 
+        must be equal to s.remaining_steps. However, I leave this argument
+        to allow the user to provide a different value.
+
+    Returns
+    -------
+    payoff : float
+        This is the accrual cost of the rollout that starts in s and continues
+        until the horizon or until the maximum depth. In other words, this is
+        a first estimate of V(s).
+    
+    Note also that the childs are never included in the graph. 
+    state.SampleChild(a) instansciates locally a successor state but it is not
+    stored in the graph.
+
+
+    '''
     
     # Give one extra step for new nodes that have been discovered at the end 
-    # of the trial.
+    # of the trial. 
     if horizon < 1:
         horizon = 1
     
-    depth = 40      # Define the depth parameter, how deep do you want to go?
+    depth = 1      # Define the depth parameter, how deep do you want to go?
     nRollout = 0    # initialise the rollout counter
-    payoff = 0      # initialise the cummulative cost/reward
+    payoff = 0.0    # initialise the cummulative cost/reward
     while nRollout < depth:
         
-        # NOTE: "the first state will never be a dead-end so payoff not 0"
         # 1) Stop the rollout if the state is terminal -> horizon reached
-        # 2) Stop the rollout if a dead-end is reached.
+        # 2) Stop the rollout if a dead-end is reached. There are several ways
+        #    to model a Dead-End.
+        #    a) Maze -> Dead-end if s has no applicable actions.
+        #    b) Navigation -> Dead-end when the robot is lost and s.predicates
+        #                     is an empty set. CAUTION for other problems such
+        #                     as SysAdmin or Skillteaching , empty predicates
+        #                     do NOT mean dead-end. So just in case do not 
+        #                     uncomment the last elif.
         if ( (horizon-nRollout) == 0): return payoff
-        elif not s.actions: return payoff - 5.0
-        #elif not s.predicates: return payoff - (horizon-nRollout) * (0.8) # max cost for the rest of decission epochs        
+        elif not s.actions: return payoff - (horizon-nRollout) * 0.5
+        #elif not s.predicates: return payoff - (horizon-nRollout) * (0.8)     # max cost for the rest of decission epochs        
         
         # The rollouts progress with random actions -> sample an action
         a = s.SampleAction()
@@ -47,141 +94,304 @@ def Rollout(s, horizon):
 
 #----------------------------------------------------------------------------#    
 """
-Three different methods to sample an action according to UCB-EBC. All of them 
-will only take into account relevant actions... if some experiments must be 
-undertaken considering all actions, please replace s.relevActions by s.actions
-
+                     DEFINE THE ACTION SELECTION STRATEGY
 """
 def ActionSelection_Max(s,G):
-    c = [0,2]           # Exploration coefficient bounds 
+    '''
+    Parameters
+    ----------
+    s : state object from GenerativeModel.py
+        This is the state that will be considered to choose the action.
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of state s that is needed
+        to apply the modified UCB formula
+
+    Returns
+    -------
+    a_UCB : action object
+        This action selection strategy returns the action that maximize the
+        modified UCB formula. This new formula relies on an adaptive explora-
+        tion coefficient based on the EXACT max entropy among the actions of s
+
+    '''
+    c = [0.1, 2.0]      # Exploration coefficient bounds
+    maxCost = 40.0      # max|C(s,a)|
     UCB = {}            # Dictionary to save the result of UCB for each action
     
     # Compute normalised entropy with MaxEntropy
     en = (c[1] - c[0]) * s.max_entropy + c[0]
+    
     # Compute the adaptive explotration coefficient by rescaling with the 
     # higher cost/reward
-    c_ebc = 5 * en  
-    # CONSIDER ONLY RELEVANT ACTIONS 
+    c_ebc = maxCost * en
+    
+    # Compute UCB values for each applicable action
     for a in s.actions:
     
         # Modified UCB formula                              
         UCB[a] = G[s][a]["Q-value"] + c_ebc * math.sqrt(math.log(G[s]["N"])/G[s][a]["Na"])
 
-    # choose the relevant action that maximize the UCB formula    
-    a_UCB = max(UCB.items(), key=operator.itemgetter(1))[0]
+    # choose the relevant action that maximize the UCB formula 
+    # OPTION 1: 
+    #a_UCB = max(UCB.items(), key=operator.itemgetter(1))[0]
+    
+    # OPTION 2:
+    maxUCB = max(UCB.items(), key=operator.itemgetter(1))[1]
+    UCB_actions = []    
+    # Just in case there are several actions with the same UCB evaluation, take
+    # one of them randomly
+    for a in UCB.keys():
+        if UCB[a] == maxUCB :
+            UCB_actions.append(a)
+    
+    a_UCB = choice(UCB_actions)
+    
     return a_UCB
 
-"""
 
-"""
 def ActionSelection_Mean(s,G):
-    c = [0,2]           # Exploration coefficient bounds 
+    '''
+    Parameters
+    ----------
+    s : state object from GenerativeModel.py
+        This is the state that will be considered to choose the action.
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of state s that is needed
+        to apply the modified UCB formula
+
+    Returns
+    -------
+    a_UCB : action object
+        This action selection strategy returns the action that maximize the
+        modified UCB formula. This new formula relies on an adaptive explora-
+        tion coefficient based on the EXACT mean entropy among the actions of 
+        the state s.
+
+    '''
+    
+    c = [0.1, 2.0]   # Exploration coefficient bounds 
+    maxCost = 40.0    # max|C(s,a)|
     UCB = {}         # Dictionary to save the result of UCB for each action
     
             
     # Compute normalised entropy with MeanEntropy
     en = (c[1]-c[0]) * s.mean_entropy + c[0]
+    
     # Compute the adaptive explotration coefficient by rescaling with the 
     # higher cost/reward
-    c_ebc = 5 * en 
+    c_ebc = maxCost * en 
         
-    # CONSIDER ONLY RELEVANT ACTIONS 
+    # Compute UCB values for each applicable action
     for a in s.actions:
 
         # Modified UCB formula                              
         UCB[a] = G[s][a]["Q-value"] + c_ebc * math.sqrt(math.log(G[s]["N"])/G[s][a]["Na"])
 
     # choose the relevant action that maximize the UCB formula    
-    a_UCB = max(UCB.items(), key=operator.itemgetter(1))[0]
+    # OPTION 1:
+    #a_UCB = max(UCB.items(), key=operator.itemgetter(1))[0]
+    
+    # OPTION 2:
+    maxUCB = max(UCB.items(), key=operator.itemgetter(1))[1]
+    UCB_actions = []    
+    # Just in case there are several actions with the same UCB evaluation, take
+    # one of them randomly
+    for a in UCB.keys():
+        if UCB[a] == maxUCB :
+            UCB_actions.append(a)
+    
+    a_UCB = choice(UCB_actions)
+    
+    
     return a_UCB
 
-"""
 
-"""
 def ActionSelection_Pair(s,G):
-    c = [0.0, 10.0]           # Exploration coefficient bounds 
-    UCB = {}         # Dictionary to save the result of UCB for each action
+    '''
+    Parameters
+    ----------
+    s : state object from GenerativeModel.py
+        This is the state that will be considered to choose the action.
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of state s that is needed
+        to apply the modified UCB formula
+
+    Returns
+    -------
+    a_UCB : action object
+        This action selection strategy returns the action that maximize the
+        modified UCB formula. This new formula relies on an adaptive explora-
+        tion coefficient based on the EXACT entropy of the pairs state-action.
+
+    '''
     
-    # CONSIDER ONLY RELEVANT ACTIONS 
+    c = [0.1, 2.0]      # Exploration coefficient bounds 
+    maxCost = 40.0      # max|C(s,a)|
+    UCB = {}            # Dictionary to save the result of UCB for each action
+    
+    # Compute UCB values for each applicable action
     for a in s.actions:
         
         # Compute normalised entropy based s.Entropy(a)
         en = (c[1]-c[0]) * s.entropy[a] + c[0]
+        
         # Compute the adaptive explotration coefficient by rescaling with the 
         # higher cost/reward
-        c_ebc = 2.0 * en 
+        c_ebc = maxCost * en 
         # Modified UCB formula                              
         UCB[a] = G[s][a]["Q-value"] + c_ebc * math.sqrt(math.log(G[s]["N"])/G[s][a]["Na"])
 
-    # choose the relevant action that maximize the UCB formula    
-    a_UCB = max(UCB.items(), key=operator.itemgetter(1))[0]
+    # choose the relevant action that maximize the UCB formula
+    # OPTION 1:
+    #a_UCB = max(UCB.items(), key=operator.itemgetter(1))[0]
+    
+    # OPTION 2:
+    maxUCB = max(UCB.items(), key=operator.itemgetter(1))[1]
+    UCB_actions = []    
+    # Just in case there are several actions with the same UCB evaluation, take
+    # one of them randomly
+    for a in UCB.keys():
+        if UCB[a] == maxUCB :
+            UCB_actions.append(a)
+    
+    a_UCB = choice(UCB_actions)
+    
     return a_UCB
+
 
 """
 The previous functions took advantage of some domain-dependent information. 
-They open a small window to see what is inside the transition model. All in all
-they are like cheating and breaking the spirit of a generative model. The 
-following functions will try to accomplish the same tasks but using estimated 
-probabilities to compute the entropy of a state-action pair. 
+They open a small window to see what is inside the transition model. It could
+seem that they are cheating and breaking the spirit of a generative model;
+however, since this is not Reinforced Learning but probabilistic planning 
+(let's say something like model-based RL) this is completely correct.
+
+Nevertheless, let's propose more functions that will use learnt/estimated 
+probabilities to compute the entropy of the actions. Then, the following 
+functions will try to accomplish the same tasks but using estimated probabi-
+lities.
+ 
 Warning!! at the begining there are not enough sampled data and the transitions
 may seem deterministic. This leads to a low entropy and consequently to a low 
-exploration... I have a bad feeling about it...but let's see how it works.
+exploration. There are two options to overcome this issue:
+    a) Wait several Trials before using this action selection estrategy. First
+       Trials should use plain UCB formula with a fixed exploration 'c'
+    b) Inside this method, define a fixed default value for the exploration
+       coefficient that will be used in case there are not enoguh sampled data
+Both options are basically the same thing, here we propose to use opt b.
 """
 
 def ActionSelection_Pair_Estimated(s,G):
-    c = [0,2]        # Exploration coefficient bounds 
+    '''
+    Parameters
+    ----------
+    s : state object from GenerativeModel.py
+        This is the state that will be considered to choose the action.
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of state s that is needed
+        to apply the modified UCB formula
+
+    Returns
+    -------
+    a_UCB : action object
+        This action selection strategy returns the action that maximize the
+        modified UCB formula. This new formula relies on an adaptive explora-
+        tion coefficient based on the ESTIMATED entropy of the pairs 
+        state-action.
+
+    '''
+    
+    c = [0.1, 2.0]   # Exploration coefficient bounds
+    maxCost = 40.0   # max|C(s,a)|
     UCB = {}         # Dictionary to save the result of UCB for each action
     
-    
+    # Compute UCB values for each applicable action
     for a in s.actions:
         
-        # Estimate the entropy, if the action hasn't a list of successors big
-        # enough, let's take entropy =1 to push for exploration.  
-        if len(G[s][a]["Successors"])>=1: 
+        # Estimate the entropy. If the action does not have enough visits to 
+        # estimate the probabilities correctly, set entropy to 1.0 to push for 
+        # exploration.
+        if G[s][a]["Na"] > 10: 
             e = 0.0
             for child in G[s][a]["Successors"].keys():
                 prob = G[s][a]["Successors"][child]/G[s][a]["Na"]
                 e += - prob * math.log2(prob)
         else : 
             e = 1.0
+        
         # Compute normalised entropy based on the estimated entropy
-        en = (c[1]-c[0])* e + c[0]
+        en = (c[1]-c[0]) * e + c[0]
+        
         # Compute the adaptive explotration coefficient by rescaling with the 
         # higher cost/reward
-        c_ebc = 5 * en 
+        c_ebc = maxCost * en 
         # Modified UCB formula                              
         UCB[a] = G[s][a]["Q-value"] + c_ebc * math.sqrt(math.log(G[s]["N"])/G[s][a]["Na"])
 
     # choose the relevant action that maximize the UCB formula    
     a_UCB = max(UCB.items(), key=operator.itemgetter(1))[0]
+    
     return a_UCB
 
-"""
 
-"""
 
 def ActionSelection_Mean_Estimated(s,G):
-    c = [0,2]        # Exploration coefficient bounds 
+    '''
+    Parameters
+    ----------
+    s : state object from GenerativeModel.py
+        This is the state that will be considered to choose the action.
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of state s that is needed
+        to apply the modified UCB formula
+
+    Returns
+    -------
+    a_UCB : action object
+        This action selection strategy returns the action that maximize the
+        modified UCB formula. This new formula relies on an adaptive explora-
+        tion coefficient based on the ESTIMATED mean entropy among the actions 
+        
+    '''
+    
+    c = [0.1, 2.0]   # Exploration coefficient bounds 
+    maxCost = 40.0   # max|C(s,a)|
     UCB = {}         # Dictionary to save the result of UCB for each action
     
     
     # Estimate the mean entropy
     entropies = []
     for a in s.actions:
-        e = 0.0
-        for child in G[s][a]["Successors"].keys():
-            prob = G[s][a]["Successors"][child]/G[s][a]["Na"]
-            e += - prob * math.log2(prob)
+        
+        # Estimate the entropy. If the action does not have enough visits to 
+        # estimate the probabilities correctly, set entropy to 1.0 to push for 
+        # exploration.
+        if G[s][a]["Na"] > 10: 
+            e = 0.0
+            for child in G[s][a]["Successors"].keys():
+                prob = G[s][a]["Successors"][child]/G[s][a]["Na"]
+                e += - prob * math.log2(prob)
+        else : 
+            e = 1.0
+        
         entropies.append(e)
     
     e = (1/len(entropies)) * sum(entropies)
+    
     # Compute normalised entropy based on the estimated entropy
     en = (c[1]-c[0])* e + c[0]
+    
     # Compute the adaptive explotration coefficient by rescaling with the 
     # higher cost/reward
-    c_ebc = 5*en 
+    c_ebc = maxCost * en 
     
-    for a in s.relevActions:         
+    # Compute UCB values for each applicable action
+    for a in s.actions:         
         # Modified UCB formula                              
         UCB[a] = G[s][a]["Q-value"] + c_ebc * math.sqrt(math.log(G[s]["N"])/G[s][a]["Na"])
 
@@ -189,22 +399,48 @@ def ActionSelection_Mean_Estimated(s,G):
     a_UCB = max(UCB.items(), key=operator.itemgetter(1))[0]
     return a_UCB
 
-"""
 
-"""
 
 def ActionSelection_Max_Estimated(s,G):
-    c = [0,2]        # Exploration coefficient bounds 
-    UCB = {}         # Dictionary to save the result of UCB for each action
+    '''
+    Parameters
+    ----------
+    s : state object from GenerativeModel.py
+        This is the state that will be considered to choose the action.
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of state s that is needed
+        to apply the modified UCB formula
+
+    Returns
+    -------
+    a_UCB : action object
+        This action selection strategy returns the action that maximize the
+        modified UCB formula. This new formula relies on an adaptive explora-
+        tion coefficient based on the ESTIMATED max entropy among the actions 
+        
+    '''
     
-    # CONSIDER ONLY RELEVANT ACTIONS 
+    c = [0.1, 2.0]    # Exploration coefficient bounds
+    maxCost = 40.0   # max|C(s,a)|
+    UCB = {}          # Dictionary to save the result of UCB for each action
+    
+    
     # Estimate the max entropy
     entropies = []
     for a in s.actions:
-        e = 0.0
-        for child in G[s][a]["Successors"].keys():
-            prob = G[s][a]["Successors"][child]/G[s][a]["Na"]
-            e += - prob * math.log2(prob)
+        
+        # Estimate the entropy. If the action does not have enough visits to 
+        # estimate the probabilities correctly, set entropy to 1.0 to push for 
+        # exploration.
+        if G[s][a]["Na"] > 10: 
+            e = 0.0
+            for child in G[s][a]["Successors"].keys():
+                prob = G[s][a]["Successors"][child]/G[s][a]["Na"]
+                e += - prob * math.log2(prob)
+        else : 
+            e = 1.0
+        
         entropies.append(e)
     
     e = max(entropies)
@@ -212,9 +448,9 @@ def ActionSelection_Max_Estimated(s,G):
     en = (c[1]-c[0])* e + c[0]
     # Compute the adaptive explotration coefficient by rescaling with the 
     # higher cost/reward
-    c_ebc = 5*en 
+    c_ebc = maxCost * en 
     
-    for a in s.relevActions:         
+    for a in s.actions:         
         # Modified UCB formula                              
         UCB[a] = G[s][a]["Q-value"] + c_ebc * math.sqrt(math.log(G[s]["N"])/G[s][a]["Na"])
 
@@ -224,53 +460,44 @@ def ActionSelection_Max_Estimated(s,G):
 
     
 #----------------------------------------------------------------------------#
-    
-#----------------------------------------------------------------------------#
 """
-"""
-def StateEquality(s1,s2):
-    rv= True                                         # Init return value
-    if len(s1.predicates) == len(s2.predicates):     # Check if the number of predicates is the same
-        for pred in s1.predicates:
-            if pred not in s2.predicates:            # Check if every predicate of s1 is in s2.
-                rv = False
-                break                                # One mismatch is enough to return False
-    else:
-        rv = False
-    
-    return rv
-      
-    
-def checkState(s):
-    
-    global G              # Get access to the graph
-    # state by state check if the predicates of the analysed state matches with 
-    # the predicates of already visited states.
-    for state in G.keys():
-        
-        if StateEquality(s,state) :
-            # Overwrite s because it is a new instance 
-            # of an already visited state
-            s = state
-            break
-    return s
+                     DEFINE SOME USEFUL TOOLS
+"""    
+
+from simulation.sim_ToolBox import checkState_FH
+
 
 
 #----------------------------------------------------------------------------#        
 
 def initNode(s, horizon):
+    '''
+    Parameters
+    ----------
+    s : State object from GenerativeModel.py
+        This is the node that is going to be initialised in the Graph.
+    horizon : int
+        Remaining decision steps for the initialised node.
+
+    Returns
+    -------
+    rv : float
+        This function returns the first estimate of V(s) but this return is
+        not used by the algorithm because the backup function works 
+        differently now.
+
+    '''
     global G
     
     # First of all init the entropy of the state:
     s.set_entropy()
-    
+
     # Create a new node in the graph if this is a new state
     G[s] = {}        # intialise node's dictionary
     G[s]["N"] = 0    # Count the first visit to the node (as the number of initialised actions) 
     G[s]["V"] = 0    # Initialise the Value function of the decission Node
     
     # Initialise the Q-values based on rollouts
-    # NOTE that (all the possible/only relevant) actions are tested.
     # NOTE that the childs are not created in the graph.
     aux = []          # empty list to ease the maximization
     for a in s.actions:
@@ -298,19 +525,42 @@ def initNode(s, horizon):
     return rv
 
 #-----------------------------------------------------------------------------    
-              
+"""
+            DESCRIPTION OF ALL THE PROCESSES WITHIN A TRIAL
+"""              
 def Trial(s,H,option):
+    '''
+    Parameters
+    ----------
+    s : State object from GenerativeModel.py
+        This is the current sate.
+    H : int
+        This is the remaing decision epochs. It must be equal to s.remaining_steps
+    option : int
+        Set the desired action selection strategy:
+            0-> max entropy exact
+            1-> mean entropy exact
+            2-> s-a pair entropy exact
+            3-> max entropy estimated
+            4-> mean entropy estimated
+            5-> s-a pair entropy estimated
+
+    Returns
+    -------
+    None.
+
+    '''
     
     global G           # Make sure that I have access to the graph
-    K = -0.5             # Internal parameter -> asociated cost to dead-ends
+    K = -0.5           # Internal parameter -> asociated cost to dead-ends
     
     
     # 0) CHECK IF THE CURRENT STATE IS NEW -----------------------------------
     # If this state have been visited before, overwrite it with the first
     # instance of that state. Otherwise continue an initialise the node.
-    s = checkState(s)
+    s = checkState_FH(s,G)
     
-    # 0.5) ESPECIAL CHECK FOR DEAD_ENDS (No Application for most problems)
+    # 0.5) ESPECIAL CHECK FOR DEAD_ENDS (Only applicable to MAZE)
     if not s.actions:          
         
         if s not in G :                #Include dead-end node in the Graph
@@ -338,9 +588,10 @@ def Trial(s,H,option):
     
     
     # 4) SAMPLE A CHILD  PLAYING THIS ACTION ---------------------------------
-    [successor,cost] = s.SampleChild(a_UCB)
+    [successor,cost] = s.SampleChild(a_UCB)   
+    successor = checkState_FH(successor,G)   # Check because this object will
+                                             # be used as a key later.
     
-    successor = checkState(successor)
     # 6) UPDATE THE COUNTERS -------------------------------------------------
     G[s]["N"] += 1
     G[s][a_UCB]["Na"] += 1
@@ -382,9 +633,57 @@ def Trial(s,H,option):
     
 #----------------------------------------------------------------------------#    
 """
-
+            DESCRIPTION OF THE MAIN BODY OF THE ALGORITHM
 """
 def maxUCT_adaptive(s0, horizon, maxTrials, option):
+    '''
+    Parameters
+    ----------
+    s0 : State object from GenerativeModel.py
+        This is the initial state, the root of the tree. All the trials will
+        start in this state.
+    horizon : int
+        This is the finite horizon of the MDP. The planning problem has only
+        "horizon" decision epochs.
+    maxTrials : int
+        This is the "time-out", the stop condition. The algorithm will run
+        trials until the number of trials reaches maxTrials
+    option : int
+        Set the desired action selection strategy:
+            0-> max entropy exact
+            1-> mean entropy exact
+            2-> s-a pair entropy exact
+            3-> max entropy estimated
+            4-> mean entropy estimated
+            5-> s-a pair entropy estimated
+
+    Returns
+    -------
+    G : dict
+        This dictionary is the Graph where the information about the partial 
+        tree is stored. Each entry contains the data of all the states that
+        have been discovered through trials
+        G = { s1: { N  : Number of times this State has been visited N(s)
+                     V  : Value function in the decission Node s. 
+                     a1 : { "cost"     : estimate of C(s1,a1)
+                            "Na"       : number of times chance node s1,a1 has 
+                                         been visited
+                            "Q-value"  : current estimation for Q(s1,a1)
+                            "successors" : { s2: number of times s2 has been
+                                                 sampled from chance node s1,a1
+                                             s3: ...
+                                           }
+                           } 
+                     a2 : {...}
+                   }
+              
+              s2: {...}         
+            }
+        
+    Vs0 : list
+        This list contains the evolution of V(s0) along trials.
+
+    '''
     
     nTrial = 0                         # initialize the trial counter
     global G                           # make a global variable so that all 
@@ -392,19 +691,14 @@ def maxUCT_adaptive(s0, horizon, maxTrials, option):
     G = {}                             # initialize a graph
     Vs0 = []
     
-    # safety check
-    """
-    if option not in [0,1,2,3,4,5]:
-        print("invalid option argument")
-        return
-    """
-    k=1
+    k=1                                # Display counter
     
     while nTrial < maxTrials :         # perform trials while possible
         
-        if (nTrial >= k*maxTrials/10):
+        if (nTrial >= k*maxTrials/10): # Display progress every 10%
             print( str(k*10) + "%")
             k+=1 
+            
         nTrial += 1
         Trial(s0, horizon, option)
         Vs0.append(G[s0]["V"])  
