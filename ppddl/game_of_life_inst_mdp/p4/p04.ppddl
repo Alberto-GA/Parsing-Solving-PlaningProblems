@@ -1,0 +1,13 @@
+(define (problem game_of_life_inst_mdp__4)
+	(:domain game_of_life_mdp)
+	(:init 
+		(alive__x1_y1)
+		(alive__x1_y3)
+		(alive__x1_y4)
+		(alive__x2_y2)
+		(alive__x3_y3)
+	)
+	(:metric maximize (reward))
+	;; (:horizon 40)
+	;; (:discount 1.0)
+)

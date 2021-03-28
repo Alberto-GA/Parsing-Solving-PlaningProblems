@@ -1,0 +1,13 @@
+(define (problem crossing_traffic_inst_mdp__4)
+	(:domain crossing_traffic_mdp)
+	(:init 
+		(obstacle_at__x2_y3)
+		(obstacle_at__x3_y2)
+		(obstacle_at__x3_y3)
+		(obstacle_at__x4_y2)
+		(robot_at__x4_y1)
+	)
+	(:metric maximize (reward))
+	;; (:horizon 40)
+	;; (:discount 1.0)
+)

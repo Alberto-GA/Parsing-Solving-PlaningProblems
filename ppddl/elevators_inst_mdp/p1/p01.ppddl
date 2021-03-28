@@ -1,0 +1,11 @@
+(define (problem elevators_inst_mdp__1)
+	(:domain elevators_mdp)
+	(:init 
+		(elevator_dir_up__e0)
+		(elevator_at_floor__e0_f0)
+		(elevator_closed__e0)
+	)
+	(:metric maximize (reward))
+	;; (:horizon 40)
+	;; (:discount 1.0)
+)
