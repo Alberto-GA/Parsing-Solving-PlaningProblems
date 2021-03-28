@@ -1,0 +1,9 @@
+(define (problem recon_inst_mdp__6)
+	(:domain recon_mdp)
+	(:init 
+		(agentAt__a1_x1_y2)
+	)
+	(:metric maximize (reward))
+	;; (:horizon 40)
+	;; (:discount 1.0)
+)

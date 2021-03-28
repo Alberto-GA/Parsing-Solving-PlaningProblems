@@ -1,0 +1,8 @@
+(define (problem skill_teaching_inst_mdp__2)
+	(:domain skill_teaching_mdp)
+	(:init 
+	)
+	(:metric maximize (reward))
+	;; (:horizon 40)
+	;; (:discount 1.0)
+)

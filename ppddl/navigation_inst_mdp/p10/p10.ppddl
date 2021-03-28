@@ -1,0 +1,9 @@
+(define (problem navigation_inst_mdp__10)
+	(:domain navigation_mdp)
+	(:init 
+		(robot_at__x405_y12)
+	)
+	(:metric maximize (reward))
+	;; (:horizon 40)
+	;; (:discount 1.0)
+)
