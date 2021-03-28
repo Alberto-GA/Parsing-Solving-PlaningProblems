@@ -1,0 +1,10 @@
+(define (problem maze_1)
+	(:domain maze_mdp)
+	(:init 
+		(robot_at_x0_y0)
+	)
+	(:goal (and (robot_at_x2_y3) ) )
+	;; (:metric maximize (reward))
+	;; (:horizon 40)
+	;; (:discount 1.0)
+)

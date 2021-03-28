@@ -1,0 +1,12 @@
+(define (problem traffic_inst_mdp__2)
+	(:domain traffic_mdp)
+	(:init 
+		(occupied__ca3a2)
+		(occupied__ca3a4)
+		(occupied__ca4a3)
+		(occupied__ca3a7)
+	)
+	(:metric maximize (reward))
+	;; (:horizon 40)
+	;; (:discount 1.0)
+)
