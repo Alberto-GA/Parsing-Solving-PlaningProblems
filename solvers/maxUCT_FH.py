@@ -17,6 +17,7 @@ NOTE:
 import math
 import operator
 from random import choice
+import time
 
 #-------------------------------FUNCTIONS------------------------------------#
 """
@@ -57,7 +58,7 @@ def Rollout(s, horizon):
     if horizon < 1:
         horizon = 1
     
-    depth = 1      # Define the depth parameter, how deep do you want to go?
+    depth = 40      # Define the depth parameter, how deep do you want to go?
     nRollout = 0    # initialise the rollout counter
     payoff = 0.0    # initialise the cummulative cost/reward
     while nRollout < depth:
@@ -299,7 +300,7 @@ def UCT_Trial(s,H,c):
 """
             DESCRIPTION OF THE MAIN BODY OF THE ALGORITHM
 """
-def maxUCT_like(s0, horizon, maxTrials,c):
+def maxUCT_like(s0, horizon, maxTrials, timeOut, c):
     '''
     Parameters
     ----------
@@ -350,7 +351,10 @@ def maxUCT_like(s0, horizon, maxTrials,c):
     Vs0 = []
     k=1                                # Display counter
     
-    while nTrial < maxTrials :         # perform trials while possible
+    elapsedTime = 0.0                  # Init elapsed Time
+    tic = time.perf_counter()          # Reference time
+    
+    while (nTrial < maxTrials) and (elapsedTime < timeOut) :         # perform trials while possible
         
         if (nTrial >= k*maxTrials/10): # Display progress every 10%
             print( str(k*10) + "%")
@@ -358,6 +362,9 @@ def maxUCT_like(s0, horizon, maxTrials,c):
     
         nTrial += 1
         UCT_Trial(s0,horizon,c)
-        Vs0.append(G[s0]["V"])  
+        Vs0.append(G[s0]["V"])
+        
+        toc =  time.perf_counter()    # Timeout control
+        elapsedTime = toc-tic
         
     return G,Vs0     

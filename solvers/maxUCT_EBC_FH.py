@@ -17,6 +17,7 @@ NOTE:
 import math
 import operator
 from random import choice
+import time
 #-------------------------------FUNCTIONS------------------------------------#
 """
                         DEFINE THE HEURISTIC TO INIT V(s)
@@ -57,7 +58,7 @@ def Rollout(s, horizon):
     if horizon < 1:
         horizon = 1
     
-    depth = 1      # Define the depth parameter, how deep do you want to go?
+    depth = 40      # Define the depth parameter, how deep do you want to go?
     nRollout = 0    # initialise the rollout counter
     payoff = 0.0    # initialise the cummulative cost/reward
     while nRollout < depth:
@@ -115,8 +116,8 @@ def ActionSelection_Max(s,G):
         tion coefficient based on the EXACT max entropy among the actions of s
 
     '''
-    c = [0.1, 2.0]      # Exploration coefficient bounds
-    maxCost = 40.0      # max|C(s,a)|
+    c = [0.5, 50.0]      # Exploration coefficient bounds
+    maxCost = 0.75       # max|C(s,a)|
     UCB = {}            # Dictionary to save the result of UCB for each action
     
     # Compute normalised entropy with MaxEntropy
@@ -171,8 +172,8 @@ def ActionSelection_Mean(s,G):
 
     '''
     
-    c = [0.1, 2.0]   # Exploration coefficient bounds 
-    maxCost = 40.0    # max|C(s,a)|
+    c = [0.5, 50.0]      # Exploration coefficient bounds
+    maxCost = 0.75       # max|C(s,a)|
     UCB = {}         # Dictionary to save the result of UCB for each action
     
             
@@ -228,8 +229,8 @@ def ActionSelection_Pair(s,G):
 
     '''
     
-    c = [0.1, 2.0]      # Exploration coefficient bounds 
-    maxCost = 40.0      # max|C(s,a)|
+    c = [0.5, 50.0]      # Exploration coefficient bounds
+    maxCost = 0.75       # max|C(s,a)|
     UCB = {}            # Dictionary to save the result of UCB for each action
     
     # Compute UCB values for each applicable action
@@ -305,8 +306,8 @@ def ActionSelection_Pair_Estimated(s,G):
 
     '''
     
-    c = [0.1, 2.0]   # Exploration coefficient bounds
-    maxCost = 40.0   # max|C(s,a)|
+    c = [0.5, 50.0]      # Exploration coefficient bounds
+    maxCost = 0.75       # max|C(s,a)|
     UCB = {}         # Dictionary to save the result of UCB for each action
     
     # Compute UCB values for each applicable action
@@ -359,8 +360,8 @@ def ActionSelection_Mean_Estimated(s,G):
         
     '''
     
-    c = [0.1, 2.0]   # Exploration coefficient bounds 
-    maxCost = 40.0   # max|C(s,a)|
+    c = [0.5, 50.0]      # Exploration coefficient bounds
+    maxCost = 0.75       # max|C(s,a)|
     UCB = {}         # Dictionary to save the result of UCB for each action
     
     
@@ -421,8 +422,8 @@ def ActionSelection_Max_Estimated(s,G):
         
     '''
     
-    c = [0.1, 2.0]    # Exploration coefficient bounds
-    maxCost = 40.0   # max|C(s,a)|
+    c = [0.5, 50.0]      # Exploration coefficient bounds
+    maxCost = 0.75       # max|C(s,a)|
     UCB = {}          # Dictionary to save the result of UCB for each action
     
     
@@ -635,7 +636,7 @@ def Trial(s,H,option):
 """
             DESCRIPTION OF THE MAIN BODY OF THE ALGORITHM
 """
-def maxUCT_adaptive(s0, horizon, maxTrials, option):
+def maxUCT_adaptive(s0, horizon, maxTrials, timeOut, option):
     '''
     Parameters
     ----------
@@ -693,7 +694,10 @@ def maxUCT_adaptive(s0, horizon, maxTrials, option):
     
     k=1                                # Display counter
     
-    while nTrial < maxTrials :         # perform trials while possible
+    elapsedTime = 0.0                  # Init elapsed Time
+    tic = time.perf_counter()          # Reference time
+       
+    while (nTrial < maxTrials) and (elapsedTime < timeOut) :         # perform trials while possible
         
         if (nTrial >= k*maxTrials/10): # Display progress every 10%
             print( str(k*10) + "%")
@@ -702,5 +706,8 @@ def maxUCT_adaptive(s0, horizon, maxTrials, option):
         nTrial += 1
         Trial(s0, horizon, option)
         Vs0.append(G[s0]["V"])  
+        
+        toc =  time.perf_counter()    # Timeout control
+        elapsedTime = toc-tic
         
     return G,Vs0     

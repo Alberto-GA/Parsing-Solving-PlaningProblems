@@ -18,6 +18,7 @@ NOTE:
 import math
 import operator
 from random import choice
+import time
 #-------------------------------FUNCTIONS------------------------------------#
 """
                         DEFINE THE HEURISTIC TO INIT V(s)
@@ -51,7 +52,7 @@ def Rollout(s, horizon):
     stored in the graph.
 
     '''
-    depth = 1      # Define the depth parameter, how deep do you want to go?
+    depth = 40     # Define the depth parameter, how deep do you want to go?
     nRollout = 0    # initialise the rollout counter
     payoff = 0.0    # initialise the cummulative cost/reward
     while nRollout < depth:
@@ -266,7 +267,7 @@ def UCT_Trial(s, H, c, FH_Flag):
 """
             DESCRIPTION OF THE MAIN BODY OF THE ALGORITHM
 """
-def UCT_like_FH(s0, horizon, maxTrials, c, FH_Flag):
+def UCT_like_FH(s0, horizon, maxTrials, timeOut, c, FH_Flag):
     '''
     Parameters
     ----------
@@ -314,7 +315,10 @@ def UCT_like_FH(s0, horizon, maxTrials, c, FH_Flag):
     
     k=1                                # Display counter
     
-    while nTrial < maxTrials :         # Perform trials while possible
+    elapsedTime = 0.0                  # Init elapsed Time
+    tic = time.perf_counter()          # Reference time
+    
+    while (nTrial < maxTrials) and (elapsedTime < timeOut) :         # Perform trials while possible
         
         if (nTrial >= k*maxTrials/10): # Display progress every 10%
             print( str(k*10) + "%")
@@ -324,6 +328,8 @@ def UCT_like_FH(s0, horizon, maxTrials, c, FH_Flag):
         UCT_Trial(s0, horizon, c, FH_Flag)
         Vs0.append(G[s0]["V"])
         
+        toc =  time.perf_counter()    # Timeout control
+        elapsedTime = toc-tic
         
     return G,Vs0
 

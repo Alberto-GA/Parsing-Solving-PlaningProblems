@@ -196,6 +196,6 @@ def sim_SysAdmin(s0, G, horizon, problem):
         
     animator = ani.FuncAnimation(fig, newFrame, interval = 400)
     
-    animator.save(r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\output\SysAdminP3.gif')
+    animator.save(r'C:\Users\alber\Documents\ISAE-MAE\Research project\MyAlgorithms\learning2parse\output\SysAdminP1_test.gif')
      
     return

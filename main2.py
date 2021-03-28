@@ -25,9 +25,10 @@ import json
 s0 = getInitialState()
 s_goal = getGoalState()
 
-MaxTrials = 10000
-exploration_c = 10
-horizon = 40
+#MaxTrials = 20000
+#timeOut = 300.0
+#exploration_c = 10
+#horizon = 40
 
 # CALL THE ALGORITHM TO SOLVE THE PROBLEM ------------------------------------
 # For Goal-oriented problems only
@@ -35,17 +36,17 @@ horizon = 40
 #[G, Vs0] = UCT_adativeCoefficient(s0, s_goal, MaxTrials, 2)  
 
 # For infinite horizon domains, metric max reward
-#[G, Vs0] = UCT_like_FH(s0, horizon, MaxTrials, exploration_c,False)                   
-#[G, Vs0] = UCT_adativeCoefficient_FH(s0, horizon, MaxTrials, 2)    
-#[G, Vs0] = maxUCT_like(s0, horizon, MaxTrials, exploration_c)    
-[G, Vs0] = maxUCT_adaptive(s0, horizon, MaxTrials, 2)    
+#[G, Vs0] = UCT_like_FH(s0, horizon, MaxTrials, timeOut, exploration_c,False)                   
+#[G, Vs0] = UCT_adativeCoefficient_FH(s0, horizon, MaxTrials, timeOut, 2, False)    
+#[G, Vs0] = maxUCT_like(s0, horizon, MaxTrials, timeOut, exploration_c)    
+#[G, Vs0] = maxUCT_adaptive(s0, horizon, MaxTrials, timeOut, 2)    
 
 
 # PLOT THE EVOLUTION OF V(s0) ------------------------------------------------
-plt.plot(Vs0)
+#plt.plot(Vs0)
 
 # RUN A SIMULATION -----------------------------------------------------------
-cost = runSim_FH(s0, G, horizon, True, 6)
+#cost = runSim_FH(s0, G, horizon, True, 6)
 
 # RUN ANIMATED SIMULATIONS ---------------------------------------------------
 #sim_CrossingTraffic(s0, G, horizon)
@@ -53,7 +54,7 @@ cost = runSim_FH(s0, G, horizon, True, 6)
 #sim_GameOfLife(s0, G, horizon, 1)
 #sim_Reconnaissance(s0, G, horizon, 1)
 #sim_Maze(s0, G, horizon, 1)
-#sim_SysAdmin(s0, G, horizon, 3)
+#sim_SysAdmin(s0, G, horizon, 1)
 
 #%%
 # EXPERIMENTS ----------------------------------------------------------------
@@ -93,7 +94,8 @@ results['UCT-UCB']['simple'][10.0] = []
 results['UCT-UCB']['simple'][100.0] = []
 
 
-MaxTrials = 10000       
+MaxTrials = 20000
+timeOut = 300.0   
 horizon = 40
 
 
@@ -111,9 +113,9 @@ for opt,ref in opts_dict.items():   # Test all the action selection strategies
     optimizedVs0 = []               # list to store the final V(s0). 
     executedVs0  = []               # list to store the simulated costs
 
-    for i in range(0,10):           # Run the algorithm 10 times
+    for i in range(0,5):           # Run the algorithm 10 times
     
-        [G, Vs0] = maxUCT_adaptive(s0, horizon, MaxTrials, ref)
+        [G, Vs0] = maxUCT_adaptive(s0, horizon, MaxTrials, timeOut, ref)
         
         # Save the optimized V(s0)
         optimizedVs0.append( Vs0[-1] )
@@ -144,9 +146,9 @@ for exploration_c in c:
     optimizedVs0 = []               # list to store the final V(s0). 
     executedVs0  = []               # list to store the simulated costs
 
-    for i in range(0,10):           # Run the algorithm 10 times
+    for i in range(0,5):           # Run the algorithm 10 times
     
-        [G, Vs0] = maxUCT_like(s0, horizon, MaxTrials, exploration_c)    
+        [G, Vs0] = maxUCT_like(s0, horizon, MaxTrials, timeOut, exploration_c)    
         
         # Save the optimized V(s0)
         optimizedVs0.append( Vs0[-1] )
@@ -185,9 +187,9 @@ for checkOpt,flag in check_options.items():
         optimizedVs0 = []               # list to store the final V(s0). 
         executedVs0  = []               # list to store the simulated costs
     
-        for i in range(0,10):           # Run the algorithm 10 times
+        for i in range(0,5):           # Run the algorithm 10 times
         
-            [G, Vs0] = UCT_adativeCoefficient_FH(s0, horizon, MaxTrials, ref, flag)
+            [G, Vs0] = UCT_adativeCoefficient_FH(s0, horizon, MaxTrials, timeOut, ref, flag)
             
             # Save the optimized V(s0)
             optimizedVs0.append( Vs0[-1] )
@@ -224,9 +226,9 @@ for checkOpt,flag in check_options.items():
         optimizedVs0 = []               # list to store the final V(s0). 
         executedVs0  = []               # list to store the simulated costs
     
-        for i in range(0,10):           # Run the algorithm 10 times
+        for i in range(0,5):           # Run the algorithm 10 times
         
-            [G, Vs0] = UCT_like_FH(s0, horizon, MaxTrials, exploration_c, flag)  
+            [G, Vs0] = UCT_like_FH(s0, horizon, MaxTrials, timeOut, exploration_c, flag)  
             
             # Save the optimized V(s0)
             optimizedVs0.append( Vs0[-1] )
@@ -252,7 +254,7 @@ for checkOpt,flag in check_options.items():
 
 # Save the results in a file
 # OPTION 1: Pickle
-filename1 = 'ElevatorsP1.pickle'
+filename1 = 'ReconP1.pickle'
 with open(filename1, 'wb') as f:
     pickle.dump(results, f)
 
@@ -260,7 +262,7 @@ with open(filename1, 'wb') as f:
 #    results_pickle = pickle.load(f)
 
 # OPTION2: JSON
-filename2 = 'ElevatorsP1.json'
+filename2 = 'ReconP1.json'
 with open(filename2, 'w') as f2:
     json.dump(results, f2)
 
@@ -271,35 +273,3 @@ with open(filename2, 'w') as f2:
 
 
 
-"""
-noop = s0.actions[0]
-[s1, cost] = s0.SampleChild(noop)
-goUp = s1.actions[1]
-[s2, cost2] = s1.SampleChild(goUp)
-openDown = s2.actions[3]
-[s3,cost3] = s2.SampleChild(openDown)
-closeDoor = s3.actions[0]
-[s4,cost4] = s3.SampleChild(closeDoor)
-goDown = s4.actions[1]
-[s5,cost5] = s4.SampleChild(goDown)
-openUp = s5.actions[4]
-[s6,cost6] = s5.SampleChild(openUp)
-[s7,cost7] = s5.SampleChild(s5.actions[2])
-[s8,cost8] = s7.SampleChild(s7.actions[2])
-[s9,cost9] = s8.SampleChild(s8.actions[2])
-[s10,cost10] = s9.SampleChild(s9.actions[2])
-[s11,cost11] = s10.SampleChild(s10.actions[2])
-[s12,cost12] = s11.SampleChild(s11.actions[2])
-[s13,cost13] = s12.SampleChild(s12.actions[2])
-[s14,cost14] = s13.SampleChild(s13.actions[1])
-[s15,cost15] = s14.SampleChild(s14.actions[4])
-[s16,cost16] = s15.SampleChild(s15.actions[1])
-[s17,cost17] = s16.SampleChild(s16.actions[0])
-[s18,cost18] = s17.SampleChild(s17.actions[1])
-[s19,cost19] = s18.SampleChild(s18.actions[4])
-[s20,cost20] = s19.SampleChild(s19.actions[0])
-[s21,cost21] = s20.SampleChild(s20.actions[1])
-[s22,cost22] = s21.SampleChild(s21.actions[2])
-print(s22)
-
-"""
